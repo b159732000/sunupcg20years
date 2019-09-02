@@ -1,24 +1,19 @@
 import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import './App.scss';
+import { BrowserRouter, Route, Switch, Link } from 'react-router-dom';
+import FinalPage from './components/FinalPage/FinalPage.jsx';
+import IntroTextPage from './components/IntroTextPage/IntroTextPage.jsx';
 
 function App() {
   return (
     <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+      <BrowserRouter>
+        <Switch>
+          <Route path="/sunupcg20years" exact component={FinalPage}></Route>
+          <Route path="/sunupcg20years/IntroTextPage" component={IntroTextPage}></Route>
+          <Route path="/sunupcg20years/FinalPage" component={FinalPage}></Route>
+        </Switch>
+      </BrowserRouter>
     </div>
   );
 }

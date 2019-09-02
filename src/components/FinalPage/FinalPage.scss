@@ -1,0 +1,157 @@
+$ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
+
+.FinalPageContainer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  // 载入画面
+  .loadingPage {
+    background-color: #000;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1000;
+    &.hide {
+      transition: opacity 1s 1s;
+      opacity: 0;
+      pointer-events: none;
+    }
+    svg {
+      border: 1px solid yellow;
+      max-width: 100%;
+      max-height: 100%;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .text {
+      position: absolute;
+      top: 0;
+      left: 0;
+      color: #fff;
+    }
+  }
+
+  // THREE渲染區
+  .threeCanvas {
+    width: 100%;
+    height: 100%;
+    transition: $ControlOpenHideAnimation;
+    position: absolute;
+    top: 0;
+    left: 0;
+    &.usrControlIsOpen {
+      filter: blur(4px);
+      transform: scale(1.1);
+      pointer-events: none;
+    }
+  }
+
+  // 使用者自訂參數層
+  .usrCustomizePlanetControls {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    transition: $ControlOpenHideAnimation;
+    &.hide {
+      pointer-events: none;
+      opacity: 0;
+    }
+    // 星球大小
+    .planetSize {
+      bottom: 5%;
+      right: 5%;
+      position: absolute;
+      border: 1px solid #000;
+      pointer-events: all;
+      input {
+      }
+    }
+    // 確認/取消鈕
+    .usrConfirmButtonContainer {
+      position: absolute;
+      left: 50%;
+      bottom: 40px;
+      transform: translateX(-50%);
+      z-index: 2;
+      white-space: nowrap;
+      &.usrControlIsHide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .button {
+        display: inline-block;
+        border: 0;
+        letter-spacing: 1px;
+        color: #808184;
+        font-weight: 600;
+        padding: 12px 30px;
+        text-transform: uppercase;
+        width: 150px;
+        background: transparent;
+        border-radius: 4px;
+        &.confirm {
+          background: #fff;
+          box-shadow: 0 3px 3px rgba(31, 31, 31, 0.1);
+        }
+      }
+    }
+  }
+
+  // Debug用
+  .debug {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    pointer-events: none;
+    opacity: 0;
+    button {
+      pointer-events: all;
+    }
+    input {
+      pointer-events: all;
+    }
+    // 切換相機位置鈕
+    .changeCameraPosition {
+      position: absolute;
+      top: 5%;
+      left: 5%;
+      button {
+        white-space: nowrap;
+      }
+    }
+    // 即時更新翠綠山密度、高度
+    .updateGreenMountainGeo {
+      border: 1px solid #000;
+      position: absolute;
+      top: 11%;
+      left: 5%;
+      .text {
+      }
+      .updateGreenMountainGeoDensity {
+        transform: rotate(180deg);
+        display: block;
+      }
+      .updateGreenMountainGeoHeight {
+        display: block;
+      }
+    }
+    .openCloseUsrCustomizePlanetControlsOpenClose {
+      position: absolute;
+      top: 8%;
+      left: 5%;
+      button {
+        white-space: nowrap;
+      }
+    }
+  }
+}

@@ -2,10 +2,21 @@
   "name": "sunupcg20years",
   "version": "0.1.0",
   "private": true,
+  "homepage": "/sunupcg20years/",
   "dependencies": {
+    "@babel/plugin-proposal-decorators": "^7.4.4",
+    "@tweenjs/tween.js": "^18.0.0",
+    "gsap": "^2.1.3",
+    "load-bmfont": "^1.4.0",
+    "node-sass": "^4.12.0",
+    "postprocessing": "^6.6.0",
     "react": "^16.9.0",
     "react-dom": "^16.9.0",
-    "react-scripts": "3.1.1"
+    "react-router-dom": "^5.0.1",
+    "react-scripts": "3.1.1",
+    "three": "^0.107.0",
+    "three-bmfont-text": "^2.3.0",
+    "three.meshline": "^1.2.0"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -27,5 +38,8 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "babel-plugin-transform-decorators-legacy": "^1.3.5"
   }
 }
