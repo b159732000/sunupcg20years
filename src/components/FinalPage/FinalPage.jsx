@@ -1,10 +1,15 @@
 import React from 'react';
 import './FinalPage.scss';
 import THREE from '../../ThreeFiles/three.js';
-import {TweenMax, TimelineMax, Linear, Power2} from 'gsap';
-// import TWEEN from '@tweenjs/tween.js';
+import { TweenMax, TimelineMax, Linear, Power2, TimelineLite, Back, Power3 } from 'gsap';
+import TWEEN from '@tweenjs/tween.js';
+import { SphereBufferGeometry } from 'three';
+import SwipeListener from 'swipe-listener';
+import TypeWriter from 'react-typewriter';
+var glslify = require('glslify')
 
-// const TWEEN = require('@tweenjs/tween.js');
+// 定義用來偵測手勢滑動方向的變數
+let swipeDetector, thisPageSwipeListener;
 
 // THREE文字
 const createGeometry = require('three-bmfont-text');
@@ -43,6 +48,9 @@ const loadFont = require('load-bmfont');
 // 
 // 圓柱
 // CylinderGeometry(radiusTop : Float, radiusBottom : Float, height : Float, radialSegments : Integer, heightSegments : Integer, openEnded : Boolean, thetaStart : Float, thetaLength : Float)
+// 
+// 球體
+// SphereBufferGeometry(radius : Float, widthSegments : Integer, heightSegments : Integer, phiStart : Float, phiLength : Float, thetaStart : Float, thetaLength : Float)
 // 
 // !!!材質!!!
 // 基本材质 MeshBasicMaterial - 地面材質: 無光照亮暗、無陰影，始終保持材質原始顏色
@@ -115,38 +123,111 @@ let requestID;
 let camera, scene, renderer, controls;
 let base, geometryBase, baseMat;    //地球藍海的OBJECT, GEOMETRY, MATERIAL
 let terran, terranGeom, material;   //翠綠山的OBJECT, GEOMETRY, MATERIAL
-
-// 載入畫面
-let loadingPercentage = 0;
+let highTerran, terranHighGeom, highTerranMat;   //黃綠高山的OBJECT, GEOMETRY, MATERIAL
+let ground, groundGeo, groundMat;   //地面
 
 class FinalPage extends React.Component {
     constructor(props) {
         super(props);
         this.state = {
             // Debug用
-            isDebugMode: false,              //是否在debug模式
-            orbitControlsIsOpen: true,       //是否開啟OrbitControls
+            isDebugMode: false,                 //是否在debug模式
+            orbitControlsIsOpen: false,          //是否開啟OrbitControls
+            addSwipeListener: true,            //是否開啟最終頁面上下滑偵測
 
             // 我自己的設定
-            myPlanetAutoRotate: false,       //主要星球是否自轉
-            antialias: false,                //是否開啟反鋸齒
-            sceneBackground: 0x3a3a3a,       //場景背景色(0x3a3a3a深灰、0xffffff白色)
-            directionalShadow: true,         //直射光陰影
+            myPlanetAutoRotate: false,          //主要星球是否自轉
+            antialias: false,                   //是否開啟反鋸齒
+            sceneBackground: 0x000000,            //場景背景色(0x3a3a3a深灰、0xffffff白色)
+            directionalShadow: true,            //直射光陰影
+            addBaseGround: false,               //是否添加場景基準地板
+            afterMountSecondsOpenUsrCustomizeControls: 0,       //進入頁面候n秒開啟使用者控制介面
 
             // 預設的星球資訊
-            planetRadius: 400,               //星球半徑
-            greenMountainDensity: 10,
-            greenMountainHeight: 100,
+            planetRadius: 400,                  //星球半徑
+            greenMountainDensityMax: 40,// 山密度上限
+            greenMountainDensityMin: 11,// 山密度下限
+            greenMountainDensity: 30,           //高山密度, 数字越小越密
+            greenMountainHeightMax: 100,// 山高度上限
+            greenMountainHeightMin: 0,// 山高度下限
+            greenMountainHeight: 70,            //高山高度
+            planetUseToneIndex: 4,              //採用第幾組星球配色(0~9)
+            // -星球海面顏色
+            seaColor: [
+                0x1C5D99,//雪白
+                0xB67B61,//沙漠
+                0xF44CAC,//粉红
+                0x543F2F,//抹茶
+                0x76acda,//地球
+                0x10632F,//绿
+                0x0D324D,//紫色
+                0xD13434,//岩漿
+                0x6B7691,//银色
+                0x272330,//黑金
+            ],
+            // -星球可更改高山的顏色(原翠綠色高山)
+            terranColor: [
+                0xFFFFFF,//雪白
+                0xD19F84,//沙漠
+                0xF494CC,//粉红
+                0xAAEDB8,//抹茶
+                0xb8b658,//地球
+                0x3FBF5F,//绿
+                0xB88AE2,//紫色
+                0x661224,//岩漿
+                0x9EA3B0,//银色
+                0xCC7B08,//黑金
+            ],
+            // -星球不可更改高山的顏色(原黃綠色高山)
+            highTerranColor: [
+                0x9DD9D2,//雪白
+                0xFED5B8,//沙漠
+                0xF0AAC8,//粉红
+                0xFAEFE586BA90,//抹茶
+                0xe3c97f,//地球
+                0x61FF7E,//绿
+                0x8A2BE2,//紫色
+                0x87182E,//岩漿
+                0xD5D5D5,//银色
+                0xFCBE1F,//黑金
+            ],
+            // -星球色調的形容詞候選區
+            planetToneDiscriptionBucket: [
+                '冰天雪地覆盖的白色星球',
+                '满布黄沙的沙漠地带',
+                '全部是粉红的粉红世界',
+                '抹茶口味的巧克力星球',
+                '跟地球一样的配色',
+                '绿光罩顶的荧光绿星球',
+                '满布紫水晶的宝石星球',
+                '热坏了的熔岩星球',
+                '洒满月光的银色世界',
+                '低调奢华的黑色星球',
+            ],
+            planetSizeShowingText: '不大不小刚刚好',    //目前星球大小形容词
+            planetMountainDensityShowingText: '剛好就好，我喜歡有高山有平原',//目前星球上的山丘数量形容词
+            planetMountainHeightShowingText: '剛好就好，我喜歡有高山有平原',//目前星球上的山丘数量形容词
 
             // 使用者調整後的星球資訊
-            usrPlanetRadius: 400,            //星球半徑
+            usrPlanetRadius: 400,               //星球半徑
+            usrPlanetTone: 400,                 //星球色調
+            usrPlanetMountainHeight: 400,       //山高
+            usrPlanetMountainDensity: 400,      //山密度
 
             // 系統紀錄的狀態
-            usrCustomizePlanetControlsIsOpen: false,    // 使用者自訂參數層是否開啟
-            currentCameraView: 'viewMyPlanet',          // 目前的相機視角 (看自己的星球viewMyPlanet, 看全部的星球viewAllPlanet)
-            currentLoadingPercentage: 0,                       //目前載入的%數
-            isLoadingDone: false,                     //載入完成(載入完成則載入頁隱藏)
-            loadingPageShowing: true,                  //是否顯示載入畫面
+            usrCustomizePlanetControlsIsOpen: false,     //使用者自訂參數層是否開啟
+            currentCameraView: 'viewMyPlanet',          //目前的相機視角 (看自己的星球viewMyPlanet, 看全部的星球viewAllPlanet)
+            currentLoadingPercentage: 0,                //目前載入的%數
+            isLoadingDone: false,                       //載入完成(載入完成則載入頁隱藏)
+            loadingPageShowing: true,                   //是否顯示載入畫面
+            currentInIntro: true,                       //目前是在intro的狀態下嗎
+            currentAdjustingPlanetProperty: 'size',     //目前調整的參數是啥(星球大小'size', 星球主色調'tone', 山密度'density', 山高'height', 無'')
+            planetToneDiscription: ['跟地球一樣的配色'],  //星球色調的形容詞
+            isInFinalPage: false,                       //目前是否在最終顯示頁面
+            showFinalFirstSentence: false,               // 显示结尾画面第一句话
+            showFinalUsrSceneSwipeTopTip: false,         // 显示结尾个人画面往上滑提示
+            showFinalSecondSentence: false,              // 显示结尾画面第二句话
+            showFinalAlSceneSwipeBottomTip: false,       // 显示结尾个人画面往下滑提示
         }
     }
 
@@ -160,11 +241,26 @@ class FinalPage extends React.Component {
         // 更新THREE長寬及比例
         window.addEventListener('resize', this.windowOnResize);
 
-        // 火箭人
-        this.rocketManAnimation();
+        //進入頁面後五秒，開啟使用者調整視窗
+        setTimeout(() => {
+            this.setState({
+                usrCustomizePlanetControlsIsOpen: true
+            })
+        }, this.state.afterMountSecondsOpenUsrCustomizeControls * 1000);
 
-        // 更新載入頁面載入進度
-        this.updateCurrentLoadingPercentage();
+        // 掛載偵測手勢滑動的動作Listener
+        if (this.state.addSwipeListener) {
+            this.addTouchMoveListener();
+        }
+        setTimeout(() => {
+            // 随移动杆决定星球大小形容词
+            this.updatePlanetSizeDescription();
+            // 随移动杆决定星球山密度形容词
+            this.updatePlanetMountainDensityDescription();
+            // 随移动杆决定星球山高度形容词
+            this.updatePlanetMountainHeightDescription();
+        }, 500)
+
     }
 
     componentWillUnmount = () => {
@@ -203,20 +299,27 @@ class FinalPage extends React.Component {
         // renderer.setClearColor(0x000000, 0); //default
 
         // - 創建相機
-        camera = new THREE.PerspectiveCamera(50, this.threeCanvasDOMElement.clientWidth / this.threeCanvasDOMElement.clientHeight, 1, 10000);
+        // intro畫面的相機參數
+        // camera = new THREE.PerspectiveCamera(50, this.threeCanvasDOMElement.clientWidth / this.threeCanvasDOMElement.clientHeight, 1, 1000);
+        // 地球畫面的相機參數
+        camera = new THREE.PerspectiveCamera(50, this.threeCanvasDOMElement.clientWidth / this.threeCanvasDOMElement.clientHeight, 1, 3000);
         // 相機位置和朝向
+        // camera.position.set(0, 0, 10);
         camera.position.z = 2000;
         camera.position.y = 700;
         // camera.position.set(2104.940, 1144.108, 1624.405);
 
         // 相机注视点(会被animate中的注视点覆盖)
-        camera.lookAt(new THREE.Vector3(0, this.state.planetRadius, 0));    //注視主星球球心()
         // camera.lookAt(new THREE.Vector3(0, 0, 0));    //注視原点
+        camera.lookAt(new THREE.Vector3(0, this.state.planetRadius, 0));    //注視主星球球心()
 
         // 創建場景
         scene = new THREE.Scene();
         scene.name = 'MainScene';
         scene.background = new THREE.Color(this.state.sceneBackground);
+
+        // 渲染前半段介紹文字畫面
+        // this.renderIntro();
 
         // - 創建基本球體 (地球藍藍的海)
         // 創建球體幾何
@@ -231,7 +334,7 @@ class FinalPage extends React.Component {
         //     v[['x', 'y', 'z'][~~(Math.random() * 5)]] += Math.random() * 10;
         // })
         baseMat = new THREE.MeshLambertMaterial({
-            color: 0x76acda,
+            color: this.state.seaColor[this.state.planetUseToneIndex],
             // shading: THREE.FlatShading,
         });
         base = new THREE.Mesh(geometryBase, baseMat);
@@ -259,7 +362,7 @@ class FinalPage extends React.Component {
             g[['x', 'y', 'z'][~~(Math.random() * this.state.greenMountainDensity)]] += Math.random() * this.state.greenMountainHeight;
         })
         material = new THREE.MeshLambertMaterial({
-            color: 0xb8b658,
+            color: this.state.terranColor[this.state.planetUseToneIndex],
             // shading: THREE.FlatShading
         })
         terran = new THREE.Mesh(terranGeom, material);
@@ -278,13 +381,12 @@ class FinalPage extends React.Component {
         // 添加名字給這個物件、幾何、材質
         // 啟用陰影 (尚未做)
         // 添加到場景中
-        let highTerran, terranHighGeom, highTerranMat;
         terranHighGeom = new THREE.SphereGeometry(this.state.planetRadius - 10, 30, 30);
         terranHighGeom.vertices.forEach((g) => {
             g[['x', 'y', 'z'][~~(Math.random() * 10)]] += Math.random() * 40;
         })
         highTerranMat = new THREE.MeshLambertMaterial({
-            color: 0xe3c97f,
+            color: this.state.highTerranColor[this.state.planetUseToneIndex],
         });
         highTerran = new THREE.Mesh(terranHighGeom, highTerranMat);
         highTerran.name = 'highTerran';
@@ -305,7 +407,6 @@ class FinalPage extends React.Component {
 
         // - 創建場景的地面
         // 開發模式中地面面積小，正式版地面面積大
-        let ground, groundGeo, groundMat;
         if (this.state.isDebugMode) {
             groundGeo = new THREE.CylinderGeometry(500, 500, 1, 20);
         } else {
@@ -321,7 +422,9 @@ class FinalPage extends React.Component {
         // 創造陰影
         // ground.castShadow = true;
         ground.name = 'ground';
-        scene.add(ground);
+        if (this.state.addBaseGround) {
+            scene.add(ground);
+        }
 
         // - 創建大陸
 
@@ -361,13 +464,17 @@ class FinalPage extends React.Component {
         let axesHelper = new THREE.AxesHelper(6);       //舊版叫做axisHelper
         axesHelper.name = 'axesHelper';
         // 将立方体网格加入到场景中
-        scene.add(axesHelper)
+        if (this.state.isDebugMode) {
+            scene.add(axesHelper)
+        }
 
         // 影子相機助手
         let helper;
         helper = new THREE.CameraHelper(light.shadow.camera);
         helper.name = 'cameraHelper';
-        scene.add(helper);
+        if (this.state.isDebugMode) {
+            scene.add(helper);
+        }
 
         // 加入相機控制
         if (this.state.orbitControlsIsOpen) {
@@ -403,13 +510,19 @@ class FinalPage extends React.Component {
             controls.update();
         }
 
+        // 设定相机始终正对的方向
+        camera.lookAt(new THREE.Vector3(0, this.state.planetRadius, 0));       //控制焦点始終正對主星球球心
+
         // Tween起作用必須設定
-        // TWEEN.update();
+        TWEEN.update();
 
         // 地球自轉 (繞著y軸轉)
         if (this.state.myPlanetAutoRotate) {
             base.rotation.y += 0.003;
         }
+
+        // fov等等更新後須調用
+        camera.updateProjectionMatrix();
 
         renderer.render(scene, camera);
     }
@@ -738,8 +851,67 @@ class FinalPage extends React.Component {
         bgForthBase.add(highTerran);
     }
 
+    // 更改星球配色
+    updatePlanetTone = (selectedIndex) => {
+        // 更改state的狀態
+        this.setState({
+            planetUseToneIndex: selectedIndex,
+            planetToneDiscription: this.state.planetToneDiscriptionBucket[selectedIndex]
+        }, () => {
+            // 設定星球及高山顏色
+            base.material.color.setHex(this.state.seaColor[selectedIndex]);
+            terran.material.color.setHex(this.state.terranColor[selectedIndex]);
+            highTerran.material.color.setHex(this.state.highTerranColor[selectedIndex]);
+        })
+    }
+
+    // 移動星球配色調整桿時觸發
+    handlePlanetToneOnInput = () => {
+        let toneValue = this.planetToneInputDOMElement.value;       //滑桿的讀數
+        let caculateValue = Math.floor(toneValue / 10);  //滑桿讀數換算後
+
+        switch (caculateValue) {
+            case 0:
+                this.updatePlanetTone(0);
+                break;
+            case 1:
+                this.updatePlanetTone(1);
+                break;
+            case 2:
+                this.updatePlanetTone(2);
+                break;
+            case 3:
+                this.updatePlanetTone(3);
+                break;
+            case 4:
+                this.updatePlanetTone(4);
+                break;
+            case 5:
+                this.updatePlanetTone(5);
+                break;
+            case 6:
+                this.updatePlanetTone(6);
+                break;
+            case 7:
+                this.updatePlanetTone(7);
+                break;
+            case 8:
+                this.updatePlanetTone(8);
+                break;
+            case 9:
+                this.updatePlanetTone(9);
+                break;
+            default:
+                break;
+        }
+        console.log(caculateValue);
+    }
+
     // 使用者移動地球size調整桿時觸發
     handlePlanetSizeOnInput = () => {
+        // 随移动杆决定星球大小形容词
+        this.updatePlanetSizeDescription();
+
         // 讀取前一刻的滑桿數值是啥
         let lastValue;
         if (this.planetValueHistory) {
@@ -765,6 +937,9 @@ class FinalPage extends React.Component {
 
     // 使用者移動翠綠山密度調整桿觸發
     handleGreenMountainDensityBarScroll = () => {
+        // 随移动杆决定星球山密度形容词
+        this.updatePlanetMountainDensityDescription();
+
         // this.GreenMountainGeoDensityBarDOMElement
         if (terran) {
             // 釋放舊的綠高山幾何記憶體
@@ -780,11 +955,14 @@ class FinalPage extends React.Component {
             terran.geometry = terranGeom;
         }
 
-        console.log(this.GreenMountainGeoDensityBarDOMElement.value);
+        // console.log(this.GreenMountainGeoDensityBarDOMElement.value);
     }
 
     // 使用者移動翠綠山高度調整桿觸發
     handleGreenMountainHeightBarScroll = () => {
+        // 随移动杆决定星球山高度形容词
+        this.updatePlanetMountainHeightDescription();
+
         // this.GreenMountainGeoDensityBarDOMElement
         if (terran) {
             // 釋放舊的綠高山幾何記憶體
@@ -800,28 +978,109 @@ class FinalPage extends React.Component {
             terran.geometry = terranGeom;
         }
 
-        console.log(this.GreenMountainGeoHeightBarDOMElement.value);
+        // console.log(this.GreenMountainGeoHeightBarDOMElement.value);
     }
 
     // 保持原樣按鈕按下觸發
     handleUsrCancelButtonOnClick = () => {
-        // 關閉使用者自訂星球介面
-        this.setState({
-            usrCustomizePlanetControlsIsOpen: false
-        })
+        // 依照目前正在調整的參數，決定此按鈕的動作
+        switch (this.state.currentAdjustingPlanetProperty) {
+            case 'size':
+                // 關閉使用者自訂星球介面
+                this.setState({
+                    usrCustomizePlanetControlsIsOpen: false
+                })
+                break;
+            case 'tone':
+                this.setState({
+                    currentAdjustingPlanetProperty: 'size'
+                })
+                break;
+            case 'density':
+                this.setState({
+                    currentAdjustingPlanetProperty: 'tone'
+                })
+                break;
+            case 'height':
+                this.setState({
+                    currentAdjustingPlanetProperty: 'density',
+                })
+                break;
+            default:
+                break;
+        }
     }
 
     // 確定新樣式按鈕按下觸發
     handleUsrConfirmButtonOnClick = () => {
-        // 關閉使用者自訂星球介面
-        this.setState({
-            usrCustomizePlanetControlsIsOpen: false
-        })
+        // 依照目前正在調整的參數，決定此按鈕的動作
+        switch (this.state.currentAdjustingPlanetProperty) {
+            case 'size':
+                this.setState({
+                    currentAdjustingPlanetProperty: 'tone'
+                })
+                break;
+            case 'tone':
+                this.setState({
+                    currentAdjustingPlanetProperty: 'density'
+                })
+                break;
+            case 'density':
+                this.setState({
+                    currentAdjustingPlanetProperty: 'height'
+                })
+                break;
+            case 'height':
+                this.setState({
+                    currentAdjustingPlanetProperty: '',
+                    usrCustomizePlanetControlsIsOpen: false,     //關閉使用者自訂星球介面
+                    isInFinalPage: true,                          //進入最終成果呈現畫面，為了讓偵測手勢滑動方向啟用
+                    showFinalFirstSentence: true,               // 显示结尾画面第一句话
+                })
+                break;
+            default:
+                break;
+        }
+    }
+
+    // 更新確認鈕的文字
+    updateConfirmText = () => {
+        // 依照目前正在調整的參數，決定此按鈕的文字
+        switch (this.state.currentAdjustingPlanetProperty) {
+            case 'size':
+                return ('下一步')
+            case 'tone':
+                return ('下一步')
+            case 'density':
+                return ('下一步')
+            case 'height':
+                return ('确定新样式')
+            default:
+                break;
+        }
+    }
+
+    // 更新取消鈕的文字
+    updateCancelText = () => {
+        // 依照目前正在調整的參數，決定此按鈕的文字
+        switch (this.state.currentAdjustingPlanetProperty) {
+            case 'size':
+                return ('保持原样')
+            case 'tone':
+                return ('上一步')
+            case 'density':
+                return ('上一步')
+            case 'height':
+                return ('上一步')
+            default:
+                break;
+        }
     }
 
     // 切換相機位置 (看自己的星球viewMyPlanet, 看所有的星球viewAllPlanet)
     changeCameraPositionTo = (changeToView) => {
         let newCameraPositionVector;
+        let newCameraFov = {};
 
         switch (changeToView) {
             case 'viewMyPlanet':
@@ -829,14 +1088,18 @@ class FinalPage extends React.Component {
                 newCameraPositionVector = { x: 0, y: 700, z: 2000 };
                 this.setState({
                     currentCameraView: 'viewMyPlanet'
-                })
+                });
+                // camera.lookAt(new THREE.Vector3(0, this.state.planetRadius, 0));    //注視主星球球心()
+                newCameraFov.far = 3000;
                 break;
             case 'viewAllPlanet':
                 // 注視全部的星球
                 newCameraPositionVector = { x: 0, y: 2200, z: 3500 };
                 this.setState({
                     currentCameraView: 'viewAllPlanet'
-                })
+                });
+                // camera.lookAt(new THREE.Vector3(0, 0, 0));    //注視原点
+                newCameraFov.far = 10000;
                 break;
             default:
                 if (this.state.currentCameraView === 'viewMyPlanet') {
@@ -844,22 +1107,36 @@ class FinalPage extends React.Component {
                     newCameraPositionVector = { x: 0, y: 2200, z: 3500 };
                     this.setState({
                         currentCameraView: 'viewAllPlanet'
-                    })
+                    });
+                    // camera.lookAt(new THREE.Vector3(0, 0, 0));    //注視原点
+                    newCameraFov.far = 10000;
                 } else if (this.state.currentCameraView === 'viewAllPlanet') {
                     // 注視自己的星球
                     newCameraPositionVector = { x: 0, y: 700, z: 2000 };
                     this.setState({
                         currentCameraView: 'viewMyPlanet'
-                    })
+                    });
+                    // camera.lookAt(new THREE.Vector3(0, this.state.planetRadius, 0));    //注視主星球球心()
+                    newCameraFov.far = 3000;
                 }
                 break;
         }
 
         // 設定相機到新的位置
-        // let tween = new TWEEN.Tween(camera.position)
-        //     .to(newCameraPositionVector, 1000)
-        //     .easing(TWEEN.Easing.Cubic.Out)
-        //     .start();
+        let tween = new TWEEN.Tween(camera.position)
+            .to(newCameraPositionVector, 1000)
+            .easing(TWEEN.Easing.Cubic.Out)
+            .start();
+
+        // 設定相機到新的fov
+        let tween2 = new TWEEN.Tween(camera)
+            .to(newCameraFov, 1200)
+            .easing(TWEEN.Easing.Cubic.Out)
+            .start();
+
+        // 更換相機遠點 (更新fov, aspect, near, or far後需要調用updateProjectionMatrix更新) 
+        // camera.far = 10000
+        camera.updateProjectionMatrix();
     }
 
     // 打開關閉使用者自訂參數層 ('open', 'close', 無參數則切為反向狀態)
@@ -884,355 +1161,333 @@ class FinalPage extends React.Component {
     }
 
     // 渲染文字到Three中
+    // 目前宇宙中有幾顆星球
     renderThreeText = () => {
-        loadFont(require('../../fonts/DejaVu-sdf.fnt'), function (err, font) {
-            let geometry = createGeometry({
-                width: 300,
-                align: 'center',
-                font: font
-            });
+        let usrPlanetRadius = this.state.usrPlanetRadius;
 
-            geometry.update('Lorem ipsum\nDolor sit amet.');
-
-            console.log(geometry.layout.height);
-            console.log(geometry.layout.descender);
-
-            let textureLoader = new THREE.TextureLoader();
-            textureLoader.load(require('../../fonts/DejaVu-sdf.png'), function (texture) {
-                let material = new THREE.MeshBasicMaterial({
-                    map: texture,
-                    transparent: true,
-                    color: 0xff0000
+        // bmfont
+        if (false) {
+            loadFont(require('../../fonts/DejaVu-sdf.fnt'), function (err, font) {
+                let geometry = createGeometry({
+                    width: 2000,
+                    align: 'center',
+                    font: font,
                 });
 
-                let mesh = new THREE.Mesh(geometry, material);
+                // geometry.update('恭喜你發現宇宙中第\n66號星球');
+                geometry.update('Lorem ipsum\nDolor sit amet.');
 
-                // mesh.position.y = 700;
-                mesh.name = 'bmFont';
-                mesh.castShadow = true;
-                scene.add(mesh);
+                console.log(geometry.layout.height);
+                console.log(geometry.layout.descender);
+
+                let textureLoader = new THREE.TextureLoader();
+                textureLoader.load(require('../../fonts/DejaVu-sdf.png'), function (texture) {
+                    // let material = new THREE.RawShaderMaterial({
+                    //     vertexShader: glslify(require('../../ThreeFiles/shaders/fx.vert')),
+                    //     fragmentShader: glslify(require('../../ThreeFiles/shaders/fx.frag')),
+                    //     uniforms: {
+                    //         animate: { type: 'f', value: 1 },
+                    //         iGlobalTime: { type: 'f', value: 0 },
+                    //         map: { type: 't', value: texture },
+                    //         color: { type: 'c', value: new THREE.Color('#fff') }
+                    //     },
+                    //     transparent: true,
+                    //     side: THREE.DoubleSide,
+                    //     depthTest: false
+                    // })
+                    let material = new THREE.MeshBasicMaterial({
+                        map: texture,
+                        transparent: true,
+                        color: 0xaaffff
+                    })
+                    // material = new THREE.MeshBasicMaterial( { color: 0xff0000, side: THREE.BackSide } );
+
+                    let mesh = new THREE.Mesh(geometry, material);
+
+                    mesh.rotation.x = Math.PI;
+                    mesh.position.x = -1000;
+                    mesh.position.y = usrPlanetRadius * 2 + 100;
+                    mesh.position.z = 0;
+                    mesh.name = 'bmFont';
+                    // mesh.castShadow = true;
+                    scene.add(mesh);
+                })
             })
+        }
+    }
+
+    // 掛載偵測手勢滑動的動作Listener
+    addTouchMoveListener = () => {
+        swipeDetector = this.detectTouchMove;
+        thisPageSwipeListener = SwipeListener(swipeDetector);
+        swipeDetector.addEventListener('swipe', (e) => {
+            let directions = e.detail.directions;
+            let x = e.detail.x;
+            let y = e.detail.y;
+
+            if (directions.top) {
+                this.changeCameraPositionTo('viewAllPlanet');
+                this.setState({
+                    showFinalFirstSentence: false,               // 显示结尾画面第一句话
+                    showFinalUsrSceneSwipeTopTip: false,         // 显示结尾个人画面往上滑提示
+                    showFinalSecondSentence: true,              // 显示结尾画面第二句话
+                })
+            }
+
+            if (directions.bottom) {
+                this.changeCameraPositionTo('viewMyPlanet');
+                this.setState({
+                    showFinalFirstSentence: true,               // 显示结尾画面第一句话
+                    showFinalSecondSentence: false,              // 显示结尾画面第二句话
+                    showFinalAlSceneSwipeBottomTip: false,       // 显示结尾个人画面往下滑提示
+                })
+            }
         })
     }
 
-    // 火箭人动画
-    rocketManAnimation = () => {
-        
-var jetBubbles = document.getElementsByClassName('jetBubble');
-var rocketManSVG = document.querySelector('.rocketManSVG');
-var shakeGroup = document.querySelector('.shakeGroup');
-var star = document.querySelector('.star');
-var satellite = document.querySelector('.satellite');
-var astronaut = document.querySelector('.astronaut');
-var starContainer = document.querySelector('.starContainer');
-var badgeLink = document.querySelector('#badgeLink');
-
-TweenMax.to(astronaut, 0.05, {
-  y:'+=4',
-  repeat:-1, 
-  yoyo:true
-})
-var mainTimeline = new TimelineMax({repeat:-1});
-var mainSpeedLinesTimeline = new TimelineMax({repeat:-1, paused:false});
-
-mainTimeline.timeScale(6).seek(100);
-
-function createJets(){
-  TweenMax.set(jetBubbles, {
-    attr:{
-      r:'-=5'
-    }
-  })
- //jet bubbles
-  for(var i = 0; i < jetBubbles.length; i++){    
-    var jb = jetBubbles[i];    
-    var tl = new TimelineMax({repeat:-1});
-    tl.to(jb, 1 , {
-      attr:{
-        r:'+=15'
-      },
-      ease:Linear.easeNone
-    })
-    .to(jb, 1 , {
-      attr:{
-        r:'-=15'
-      },
-      ease:Linear.easeNone
-    })
-    
-    mainTimeline.add(tl, i/4)
-  }
-  //speed lines
-	for(var i = 0; i < 7; i++){
-    var sl = document.querySelector('#speedLine' + i);
-
-    var stl = new TimelineMax({repeat:-1, repeatDelay:Math.random()});
-    stl.set(sl, {
-      drawSVG:false
-    })
-    .to(sl, 0.05, {
-      drawSVG:'0% 30%',
-      ease:Linear.easeNone
-    })
-    .to(sl, 0.2, {
-      drawSVG:'70% 100%',
-      ease:Linear.easeNone
-    })  
-    .to(sl, 0.05, {
-      drawSVG:'100% 100%',
-      ease:Linear.easeNone
-    })
-     .set(sl, {
-      drawSVG:'-1% -1%'
-    });
-
-    mainSpeedLinesTimeline.add(stl, i/23);
-}  
-  //stars
-	for(var i = 0; i < 7; i++){
-    
-    var sc = star.cloneNode(true);
-    starContainer.appendChild(sc);
-    var calc = (i+1)/2;
-   
-    TweenMax.fromTo(sc, calc, {
-      x:Math.random()*600,
-      y:-30,
-      scale:3 - calc
-    }, {
-      y:(Math.random() * 100) + 600,
-      repeat:-1,
-      repeatDelay:1,
-      ease:Linear.easeNone
-    })
-  }
-  
-  rocketManSVG.removeChild(star);
-}
-
-
-var satTimeline = new TimelineMax({repeat:-1});
-satTimeline.to(satellite, 46, {
-  rotation:360,
-  transformOrigin:'50% 50%',
-  ease:Linear.easeNone
-})
-
-TweenMax.staggerTo('.pulse', 0.8, {
-  alpha:0,
-  repeat:-1,
-  ease:Power2.easeInOut,
-  yoyo:false
-}, 0.1);
-
-TweenMax.staggerTo('.satellitePulse', 0.8, {
-  alpha:0,
-  repeat:-1,
-  ease:Power2.easeInOut,
-  yoyo:false
-}, 0.1)
-
-createJets();
+    // 结尾第一句话说完触发
+    triggerOnFinalFirstSentenceEnd = () => {
+        this.setState({
+            showFinalUsrSceneSwipeTopTip: true,
+        })
     }
 
-    // 更新目前載入進度
-    updateCurrentLoadingPercentage() {
-        var LoadingPageTimer = setInterval(() => {
-            loadingPercentage += 1;
-            // console.log(loadingPercentage);
+    // 结尾第二句话说完触发
+    triggerOnFinalSecondSentenceEnd = () => {
+        this.setState({
+            showFinalAlSceneSwipeBottomTip: true,
+        })
+    }
 
-            // 更新到this.state.currentLoadingPercentage
+    // 随移动杆决定星球大小形容词
+    updatePlanetSizeDescription = () => {
+        let max = this.state.planetRadius * 1.5;
+        let min = this.state.planetRadius * 0.5;
+        let currentValue = this.planetSizeInputDOMElement.value;
+
+        // 目前游標在移動桿中的比例
+        let currentPercentage = (currentValue - min) / (max - min);
+        console.log(currentPercentage)
+
+        if (currentPercentage <= 0.33) {
             this.setState({
-                currentLoadingPercentage: loadingPercentage,
+                planetSizeShowingText: '小巧可爱就好'
             })
+        } else if (currentPercentage > 0.33 && currentPercentage <= 0.66) {
+            this.setState({
+                planetSizeShowingText: '不大不小刚刚好'
+            })
+        } else if (currentPercentage > 0.66) {
+            this.setState({
+                planetSizeShowingText: '超級無敵大'
+            })
+        }
+    }
 
-            // 更改進度條長度
-            // if (this.loadingBarDOMElement !== null) {
-            //     this.loadingBarDOMElement.style.width = loadingPercentage + '%';
-            // }
+    // 随移动杆决定星球山密度形容词
+    updatePlanetMountainDensityDescription = () => {
+        let max = this.state.greenMountainDensityMax;
+        let min = this.state.greenMountainDensityMin;
+        let currentValue = this.GreenMountainGeoDensityBarDOMElement.value;
 
-            // 如果百分比>=100, 隱藏此畫面, 清除此計數器
-            if (loadingPercentage >= 100) {
-                // 隱藏此畫面
-                this.setState({
-                    // loadingPageShowing: false,
-                    loadingText: "载入完成!",
-                    isLoadingDone: true,
-                })
-                setTimeout(this.setState({
-                    loadingPageShowing: false
-                }), 500)
-                // 清除此計數器
-                clearInterval(LoadingPageTimer);
-            }
-        }, 13);
+        // 目前游標在移動桿中的比例
+        let currentPercentage = (currentValue - min) / (max - min);
+        console.log(currentPercentage)
+
+        if (currentPercentage <= 0.33) {
+            this.setState({
+                planetMountainDensityShowingText: '不要太多山，我喜歡多一點平原'
+            })
+        } else if (currentPercentage > 0.33 && currentPercentage <= 0.66) {
+            this.setState({
+                planetMountainDensityShowingText: '不大不小刚刚好'
+            })
+        } else if (currentPercentage > 0.66) {
+            this.setState({
+                planetMountainDensityShowingText: '很多很多，是個多山的星球'
+            })
+        }
+    }
+
+    // 随移动杆决定星球山高度形容词
+    updatePlanetMountainHeightDescription = () => {
+        let max = this.state.greenMountainHeightMax;
+        let min = this.state.greenMountainHeightMin;
+        let currentValue = this.GreenMountainGeoHeightBarDOMElement.value;
+
+        // 目前游標在移動桿中的比例
+        let currentPercentage = (currentValue - min) / (max - min);
+        console.log(currentPercentage)
+
+        if (currentPercentage <= 0.33) {
+            this.setState({
+                planetMountainHeightShowingText: '不要太高，平缓一点适合我'
+            })
+        } else if (currentPercentage > 0.33 && currentPercentage <= 0.66) {
+            this.setState({
+                planetMountainHeightShowingText: '有高有矮，刚刚好适合我'
+            })
+        } else if (currentPercentage > 0.66) {
+            this.setState({
+                planetMountainHeightShowingText: '很高很高，全都比云还高'
+            })
+        }
     }
 
     render() {
         return (
             <div className="FinalPageContainer">
 
-                {/* 载入画面 */}
-                <div className={(this.state.loadingPageShowing)?("loadingPage"):("loadingPage hide")}>
-                    
-                <svg className="rocketManSVG" xmlns="http://www.w3.org/2000/svg" xmlnsXlink="http://www.w3.org/1999/xlink" viewBox="0 0 600 600">
-  <defs>
-    <path id="rocketClip" d="M300,465.7L300,465.7c-13.8,0-25-11.3-25-25V249.4c0-13.7,11.3-25,25-25h0c13.7,0,25,11.2,25,25v191.3
-  C325,454.5,313.8,465.7,300,465.7z" />
-    <clipPath id="rainbowClip">
-      <use xlinkHref="#rocketClip" overflow="visible" />
-    </clipPath>
-</defs>
-  <polygon className="star" opacity="0.5" fill="#ECB447" points="1.2,0 1.6,0.8 2.4,0.9 1.8,1.5 1.9,2.3 1.2,1.9 0.5,2.3 0.6,1.5 0,0.9 0.8,0.8 " />
-  <g className="starContainer" />
-  <g className="satellite">
-    <g className="satellitePulses" stroke="#2d2d2d">
-      <path className="satellitePulse" fill="none" strokeWidth="1.5814" strokeLinejoin="round" strokeMiterlimit={10} d="M156.3,131.8
-    c-2.8,2.8-7.2,2.8-10,0" />
-      <path className="satellitePulse" fill="none" strokeWidth="1.5814" strokeLinejoin="round" strokeMiterlimit={10} d="M158.6,134
-    c-4,4-10.5,4-14.4,0" />
-      <path className="satellitePulse" fill="none" strokeWidth="1.5814" strokeLinejoin="round" strokeMiterlimit={10} d="M160.8,136.3
-    c-5.2,5.2-13.7,5.2-18.9,0" />
-    </g>
-    <path fill="#2d2d2d" d="M106.7,91.3h-8.2v-8.2h8.2V91.3z M116.8,83.1h-8.2v8.2h8.2V83.1z M126.8,83.1h-8.2v8.2h8.2V83.1z
- M136.9,83.1h-8.2v8.2h8.2V83.1z M106.7,93.2h-8.2v8.2h8.2V93.2z M116.8,93.2h-8.2v8.2h8.2V93.2z M126.8,93.2h-8.2v8.2h8.2V93.2z
- M136.9,93.2h-8.2v8.2h8.2V93.2z M106.7,103.3h-8.2v8.2h8.2V103.3z M116.8,103.3h-8.2v8.2h8.2V103.3z M126.8,103.3h-8.2v8.2h8.2
-V103.3z M136.9,103.3h-8.2v8.2h8.2V103.3z M173.7,83.1h-8.2v8.2h8.2V83.1z M183.8,83.1h-8.2v8.2h8.2V83.1z M193.8,83.1h-8.2v8.2h8.2
-V83.1z M203.9,83.1h-8.2v8.2h8.2V83.1z M173.7,93.2h-8.2v8.2h8.2V93.2z M183.8,93.2h-8.2v8.2h8.2V93.2z M193.8,93.2h-8.2v8.2h8.2
-V93.2z M203.9,93.2h-8.2v8.2h8.2V93.2z M173.7,103.3h-8.2v8.2h8.2V103.3z M183.8,103.3h-8.2v8.2h8.2V103.3z M193.8,103.3h-8.2v8.2
-h8.2V103.3z M203.9,103.3h-8.2v8.2h8.2V103.3z M161.8,113.1V81c0-2.6-2.1-4.7-4.7-4.7h-11.7c-2.6,0-4.7,2.1-4.7,4.7v32.1
-c0,2.6,2.1,4.7,4.7,4.7h11.7C159.7,117.8,161.8,115.7,161.8,113.1z M165.6,96.3h-28.7v2.1h28.7V96.3z M152.3,117.8h-2.2v12.1h2.2
-V117.8z" />
-  </g>
-  <g className="speedLines" stroke="#3e3e3e" strokeWidth={2} strokeLinejoin="round">
-    <line id="speedLine0" fill="none" strokeMiterlimit={10} x1="252.5" y1={324} x2="252.5" y2={566} />
-    <line id="speedLine1" fill="none" strokeMiterlimit={10} x1="299.5" y1={500} x2="299.5" y2={557} />
-    <line id="speedLine2" fill="none" strokeMiterlimit={10} x1="347.5" y1={324} x2="347.5" y2={529} />
-    <line id="speedLine3" fill="none" strokeMiterlimit={10} x1="74.5" y1={45} x2="74.5" y2={500} />
-    <line id="speedLine4" fill="none" strokeMiterlimit={10} x1="544.5" y1={29} x2="544.5" y2={574} />
-    <line id="speedLine5" fill="none" strokeMiterlimit={10} x1="415.5" y1={8} x2="415.5" y2={440} />
-    <line id="speedLine6" fill="none" strokeMiterlimit={10} x1="165.5" y1={142} x2="165.5" y2={574} />
-  </g>
-  <rect x={275} y="263.3" clipPath="url(#rainbowClip)" fill="#CC583F" width={10} height="212.7" />
-  <rect x={285} y="263.3" clipPath="url(#rainbowClip)" fill="#ECB447" width={10} height="212.7" />
-  <rect x={295} y="263.3" clipPath="url(#rainbowClip)" fill="#75C095" width={10} height="212.7" />
-  <rect x={305} y="263.3" clipPath="url(#rainbowClip)" fill="#5991AA" width={10} height="212.7" />
-  <rect x={315} y="263.3" clipPath="url(#rainbowClip)" fill="#7D6AAD" width={10} height="212.7" />
-  <g className="astronaut">
-    <g className="pulseSVG" opacity="0.2" stroke="#ededed">
-      <path className="pulse" fill="none" strokeWidth={3} strokeLinejoin="round" strokeMiterlimit={10} d="M289.9,188.7
-    c5.2-5.2,13.7-5.2,18.9,0" />
-      <path className="pulse" fill="none" strokeWidth={3} strokeLinejoin="round" strokeMiterlimit={10} d="M285.6,184.5
-    c7.6-7.6,19.8-7.6,27.4,0" />
-      <path className="pulse" fill="none" strokeWidth={3} strokeLinejoin="round" strokeMiterlimit={10} d="M281.4,180.3
-    c9.9-9.9,26-9.9,35.9,0" />
-    </g>
-    <g>
-      <g>
-        <g>
-          <path fill="#CCCCCC" d="M265,320.7c0,0,0.1,0,0.1,0h0.2c0,0,0,0,0,0l0.2,0c0,0,0,0,0,0v-16.1h-21.4c0.9,3.7,2.8,6.9,5.6,9.8
-          C254,318.6,259.1,320.7,265,320.7 M334.9,320.7c0,0,0.1,0,0.1,0c5.9,0,11-2.1,15.2-6.3c2.9-2.9,4.7-6.1,5.6-9.8h-21.4v16.1
-          l0.2,0c0,0,0,0,0,0h0h0H334.9 M271.8,224.4c-4.3,0.9-8.1,2.9-11.4,6.2c-4.5,4.5-6.7,9.9-6.7,16.2v13.6c3.3-2.1,7.1-3.2,11.3-3.2
-          h0c0.9,0,1.7,0,2.6,0.1c-1.5-3.9-2.3-8.2-2.3-12.7C265.3,237,267.5,230.3,271.8,224.4 M346.3,260.4v-13.6
-          c0-6.3-2.2-11.7-6.7-16.2c-3-3-6.5-5.1-10.4-6l-0.2,0.8c3.9,5.6,5.8,12,5.8,19.2c0,4.2-0.7,8.1-2,11.8l0.1,0.8
-          c0.7-0.1,1.4-0.1,2.2-0.1h0C339.2,257.2,342.9,258.3,346.3,260.4z" />
-          <path fill="#FFFFFF" d="M299.9,210.1c0,0-0.1,0-0.1,0c-9.5,0-17.6,3.4-24.3,10.1c-1.3,1.3-2.5,2.7-3.6,4.2
-          c-4.3,5.9-6.5,12.6-6.5,20.3c0,4.6,0.8,8.8,2.3,12.7c0.2,0.6,0.5,1.2,0.8,1.8c1.7,3.6,4,6.9,7.1,9.9c3.3,3.3,6.8,5.7,10.7,7.4
-          c0.1,0,0.2,0.1,0.2,0.1c0.8,0.3,1.6,0.7,2.5,0.9c3.4,1.1,7.1,1.7,11,1.7c9.5,0,17.7-3.4,24.4-10.1c3.6-3.6,6.2-7.5,7.9-11.8
-          c0.1-0.3,0.2-0.6,0.3-0.9c1.3-3.6,1.9-7.6,1.9-11.7c0-7.2-1.9-13.5-5.7-19.1l-0.2-0.2c0,0,0-0.1-0.1-0.1l0,0l-0.1-0.1l-0.1-0.1
-          c0,0,0,0,0,0l-0.1-0.1c0-0.1-0.1-0.1-0.1-0.2c0,0,0-0.1-0.1-0.1c-1.1-1.5-2.3-2.9-3.7-4.3C317.5,213.5,309.4,210.1,299.9,210.1
-           M350.1,263.5c-1.2-1.2-2.5-2.3-3.9-3.1c-3.3-2.1-7.1-3.2-11.3-3.2h0c-0.7,0-1.5,0-2.2,0.1c-0.1,0-0.2,0-0.3,0c0,0-0.1,0-0.1,0
-          l-0.3-0.1c-1.7,4.3-4.3,8.3-7.9,11.8c-6.7,6.7-14.9,10.1-24.4,10.1c-3.9,0-7.6-0.6-11-1.7c-0.8-0.3-1.7-0.6-2.5-0.9
-          c-0.1,0-0.2-0.1-0.2-0.1c-3.9-1.7-7.5-4.2-10.7-7.4c-3-3-5.4-6.3-7.1-9.9c-0.3-0.6-0.5-1.2-0.8-1.8c-0.8-0.1-1.7-0.1-2.6-0.1h0
-          c-4.2,0-8,1.1-11.3,3.2c-1.4,0.9-2.7,1.9-3.9,3.1c-4.2,4.2-6.3,9.2-6.3,15.2v20.6c0,1.9,0.2,3.7,0.6,5.4h21.4v-22.6v22.6v16.1
-          V338c0.6,3.3,2.2,6.2,4.7,8.7c3.3,3.4,7.3,5,12,5c4.7,0,8.9-1.8,12.7-5.3c2.8-2.6,4.5-5.5,5-8.7v-15.9h-12.7H300h13h-13v15.9
-          c0.5,3.2,2.2,6.1,5,8.7c3.8,3.5,8,5.3,12.7,5.3c4.7,0,8.7-1.7,12-5c2.5-2.5,4-5.4,4.7-8.7v-17.3v-16.1v-22.6v22.6h21.4
-          c0.4-1.7,0.6-3.5,0.6-5.4v-20.6C356.4,272.8,354.3,267.7,350.1,263.5 M300,311.1v-30.1V311.1z" />
-          <path fill="#2D2D2D" d="M299.7,195.5c-1.1,0-2,0.4-2.7,1.1c-0.7,0.7-1.1,1.6-1.1,2.7c0,1.1,0.4,2,1.1,2.7
-          c0.7,0.7,1.6,1.1,2.7,1.1c1.1,0,2-0.4,2.7-1.1c0.7-0.7,1.1-1.6,1.1-2.7c0-1.1-0.4-2-1.1-2.7
-          C301.7,195.8,300.8,195.5,299.7,195.5z" />
-        </g>
-      </g>
-      <path fill="none" stroke="#2D2D2D" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" d="M355.8,304.6
-  c0.4-1.7,0.6-3.5,0.6-5.4v-20.6c0-5.9-2.1-11-6.3-15.2c-1.2-1.2-2.5-2.3-3.9-3.1c-3.3-2.1-7.1-3.2-11.3-3.2h0
-  c-0.7,0-1.5,0-2.2,0.1c-0.1,0-0.2,0-0.3,0c0,0-0.1,0-0.1,0 M332.1,257.3c-1.7,4.3-4.3,8.3-7.9,11.8c-6.7,6.7-14.9,10.1-24.4,10.1
-  c-3.9,0-7.6-0.6-11-1.7c-0.8-0.3-1.7-0.6-2.5-0.9c-0.1,0-0.2-0.1-0.2-0.1c-3.9-1.7-7.5-4.2-10.7-7.4c-3-3-5.4-6.3-7.1-9.9
-  c-0.3-0.6-0.5-1.2-0.8-1.8c-0.8-0.1-1.7-0.1-2.6-0.1h0c-4.2,0-8,1.1-11.3,3.2c-1.4,0.9-2.7,1.9-3.9,3.1c-4.2,4.2-6.3,9.2-6.3,15.2
-  v20.6c0,1.9,0.2,3.7,0.6,5.4h21.4v-22.6 M346.3,260.4v-13.6c0-6.3-2.2-11.7-6.7-16.2c-3-3-6.5-5.1-10.4-6 M328.9,225.4
-  c3.9,5.6,5.8,12,5.8,19.2c0,4.2-0.7,8.1-2,11.8 M299.7,203.1c-1.1,0-2-0.4-2.7-1.1c-0.7-0.7-1.1-1.6-1.1-2.7c0-1.1,0.4-2,1.1-2.7
-  c0.7-0.7,1.6-1.1,2.7-1.1c1.1,0,2,0.4,2.7,1.1c0.7,0.7,1.1,1.6,1.1,2.7c0,1.1-0.4,2-1.1,2.7C301.7,202.7,300.8,203.1,299.7,203.1
-  v7.1c0,0,0.1,0,0.1,0c9.5,0,17.7,3.4,24.4,10.1c1.4,1.4,2.6,2.8,3.7,4.3c0,0,0,0.1,0.1,0.1c0,0.1,0.1,0.1,0.1,0.2l0.1,0.1
-  c0,0,0,0,0,0c0,0,0.1,0.1,0.1,0.1c0,0,0,0,0,0c0,0,0,0,0,0l0.1,0.1l0,0c0,0,0,0,0.1,0.1l0.2,0.2c3.8,5.6,5.7,12,5.7,19.1
-  c0,4.2-0.6,8.1-1.9,11.7c-0.1,0.3-0.2,0.6-0.3,0.9 M329.2,224.6L329.2,224.6C329.1,224.6,329.1,224.6,329.2,224.6
-  C329.1,224.6,329.1,224.6,329.2,224.6c-0.3-0.1-0.6-0.1-0.8-0.2c0,0-0.1,0-0.2,0c0,0,0,0.1,0.1,0.1c0,0,0,0.1,0,0.1
-  c0.1,0.1,0.2,0.3,0.3,0.4c0,0,0,0,0,0l0,0c0.1,0.1,0.2,0.3,0.3,0.4c0,0,0,0,0,0 M271.8,224.4c1.1-1.4,2.3-2.8,3.6-4.2
-  c6.7-6.7,14.8-10.1,24.3-10.1 M253.7,260.4v-13.6c0-6.3,2.2-11.7,6.7-16.2c3.3-3.3,7.1-5.4,11.4-6.2c-4.3,5.9-6.5,12.6-6.5,20.3
-  c0,4.6,0.8,8.8,2.3,12.7 M332.7,256.5C332.7,256.5,332.7,256.5,332.7,256.5L332.7,256.5c0,0,0,0.1,0,0.1c0,0,0,0,0,0.1l-0.2,0.5
-  c0,0.1-0.1,0.1-0.1,0.2 M334.7,320.7h0.2c0,0,0.1,0,0.1,0c5.9,0,11-2.1,15.2-6.3c2.9-2.9,4.7-6.1,5.6-9.8h-21.4v16.1l0.2,0
-   M334.6,320.7L334.6,320.7 M287.3,321.8H300h13 M300,337.8c0.5,3.2,2.2,6.1,5,8.7c3.8,3.5,8,5.3,12.7,5.3c4.7,0,8.7-1.7,12-5
-  c2.5-2.5,4-5.4,4.7-8.7v-17.3 M265.6,320.7V338c0.6,3.3,2.2,6.2,4.7,8.7c3.3,3.4,7.3,5,12,5c4.7,0,8.9-1.8,12.7-5.3
-  c2.8-2.6,4.5-5.5,5-8.7v-15.9 M265.6,320.7C265.6,320.7,265.6,320.7,265.6,320.7l-0.3,0c0,0,0,0,0,0h-0.2c0,0-0.1,0-0.1,0
-  c-5.9,0-11-2.1-15.2-6.3c-2.9-2.9-4.7-6.1-5.6-9.8 M265.6,304.6v16.1 M334.4,282.1v22.6 M300,311.1v-30.1" />
-    </g>
-    <g>
-      <path fill="#7592A0" d="M324.5,261.6c6.8-4.3,10.2-9.5,10.2-15.5c0-5.1-2.4-9.6-7.2-13.4H272c-4.8,3.8-7.3,8.3-7.3,13.4
-  c0,6.1,3.4,11.2,10.2,15.5c6.8,4.3,15.1,6.4,24.7,6.4C309.4,268,317.6,265.9,324.5,261.6z" />
-    </g>
-    <path fill="none" stroke="#2D2D2D" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" d="M334.7,246.1
-    c0,6.1-3.4,11.2-10.2,15.5c-6.8,4.3-15.1,6.4-24.7,6.4c-9.7,0-17.9-2.1-24.7-6.4c-6.8-4.3-10.2-9.5-10.2-15.5
-    c0-5.1,2.4-9.6,7.3-13.4h55.5C332.3,236.5,334.7,241,334.7,246.1z" />
-    <path fill="none" stroke="#E6E6E6" strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" d="
-    M323.5,240.6c2.4,3.5,2.4,7.8,0,12.7 M275.8,240.6c-2.4,3.5-2.4,7.8,0,12.7" />
-    <g className="jetBubbles">
-      <g id="greyJets" fill="#2d2d2d">
-        <circle className="jetBubble" cx={289} cy={489} r={23} />
-        <circle className="jetBubble" cx={270} cy={470} r={20} />
-        <circle className="jetBubble" cx={319} cy={483} r={21} />
-      </g>
-      <g id="colorJets" strokeWidth={0} stroke="#3d3d3d">
-        <circle className="jetBubble" fill="#ECB447" cx={312} cy={449} r={8} />
-        <circle className="jetBubble" fill="#7D6AAD" cx={320} cy={480} r={10} />
-        <circle className="jetBubble" fill="#7D6AAD" cx={290} cy={460} r={10} />
-        <circle className="jetBubble" fill="#ECB447" cx={329} cy={453} r={11} />
-        <circle className="jetBubble" fill="#CC583F" cx={286} cy={463} r={7} />
-        <circle className="jetBubble" fill="#ECB447" cx={289} cy={469} r={24} />
-        <circle className="jetBubble" fill="#7D6AAD" cx={260} cy={450} r={20} />
-        <circle className="jetBubble" fill="#5991AA" cx={319} cy={463} r={10} />
-        <circle className="jetBubble" fill="#CC583F" cx={290} cy={463} r={18} />
-        <circle className="jetBubble" fill="#75C095" cx={312} cy={443} r={21} />
-        <circle className="jetBubble" fill="#5991AA" cx={275} cy="443.4" r={12} />
-      </g>
-      <use xlinkHref="#badge" x={0} y={0} />
-    </g>
-  </g>
-  <g>
-    <g>
-      <use xlinkHref="#badge" x={-20} y={293} opacity="0.1" />
-    </g>
-  </g>
-</svg>
-                
-                <div className="text">{this.state.currentLoadingPercentage}</div>
-
-                </div>
+                {/* 偵測手勢滑動 */}
+                <div className={(this.state.isInFinalPage && this.state.addSwipeListener) ? ("detectTouchMove") : ("detectTouchMove notActive")} ref={self => this.detectTouchMove = self}></div>
 
                 {/* THREE渲染區 */}
                 <div className={(this.state.usrCustomizePlanetControlsIsOpen) ? ("threeCanvas usrControlIsOpen") : ('threeCanvas')} ref={self => this.threeCanvasDOMElement = self}></div>
 
                 {/* 目前宇宙中發現了76顆星球，我們還在持續探索中 */}
-                <div className="threejsText">目前为止，骄阳宇宙发现了76颗星球，太空船还在持续搜索中...</div>
+                {/* <div className="threejsText">目前为止，骄阳宇宙发现了76颗星球，太空船还在持续搜索中...</div> */}
+                <div className="finalText">
+                    <div className="yourPlanetText">
+                        {(this.state.showFinalFirstSentence) ? (<TypeWriter typing={1} maxDelay={100} minDelay={100} onTypingEnd={() => this.triggerOnFinalFirstSentenceEnd()}>
+                            恭喜你，创造了第<span style={{ fontSize: '2rem', fontWeight: 'bold' }}>66</span>号星球
+                    </TypeWriter>) : (null)}
+                    </div>
+                    <div className="allPlanetText">
+                        {(this.state.showFinalSecondSentence) ? (<TypeWriter typing={1} maxDelay={100} minDelay={100} onTypingEnd={() => this.triggerOnFinalSecondSentenceEnd()}><div>目前为止,</div> <div>骄阳宇宙发现了76颗星球,</div> <div>太空船还在持续搜索中...</div></TypeWriter>) : (null)}
+                    </div>
+                    {/* 往上滑動 */}
+                    <div className={(this.state.showFinalUsrSceneSwipeTopTip)?("scrollTopText"):("scrollTopText hide")}>
+                        <div className="arrow left">
+                        <svg t={1567650388949} className="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id={1975}><path fill='#ffffff' d="M547.584 802.83648c20.89984 20.89984 20.89984 54.80448 0 75.70432-20.89984 20.91008-54.79424 20.91008-75.70432 0l-328.704-328.69376c-10.4448-10.45504-15.6672-24.14592-15.6672-37.84704s5.23264-27.40224 15.6672-37.84704l328.704-328.69376c20.91008-20.91008 54.80448-20.91008 75.70432 0 20.89984 20.89984 20.89984 54.79424 0 75.70432L256.74752 512 547.584 802.83648zM589.96736 512l290.83648-290.83648c20.89984-20.91008 20.89984-54.80448 0-75.70432-20.89984-20.91008-54.79424-20.91008-75.70432 0l-328.704 328.69376c-10.4448 10.45504-15.6672 24.14592-15.6672 37.84704s5.23264 27.40224 15.6672 37.84704l328.704 328.69376c20.91008 20.91008 54.80448 20.91008 75.70432 0 20.89984-20.89984 20.89984-54.80448 0-75.70432L589.96736 512z" p-id={1976} /></svg>
+                        </div>
+                        <div className="text">往上滑动</div>
+                        <div className="arrow right">
+                        <svg t={1567650388949} className="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id={1975}><path fill='#ffffff' d="M547.584 802.83648c20.89984 20.89984 20.89984 54.80448 0 75.70432-20.89984 20.91008-54.79424 20.91008-75.70432 0l-328.704-328.69376c-10.4448-10.45504-15.6672-24.14592-15.6672-37.84704s5.23264-27.40224 15.6672-37.84704l328.704-328.69376c20.91008-20.91008 54.80448-20.91008 75.70432 0 20.89984 20.89984 20.89984 54.79424 0 75.70432L256.74752 512 547.584 802.83648zM589.96736 512l290.83648-290.83648c20.89984-20.91008 20.89984-54.80448 0-75.70432-20.89984-20.91008-54.79424-20.91008-75.70432 0l-328.704 328.69376c-10.4448 10.45504-15.6672 24.14592-15.6672 37.84704s5.23264 27.40224 15.6672 37.84704l328.704 328.69376c20.91008 20.91008 54.80448 20.91008 75.70432 0 20.89984-20.89984 20.89984-54.80448 0-75.70432L589.96736 512z" p-id={1976} /></svg>
+                        </div>
+                    </div>
+                    {/* 往下滑動 */}
+                    <div className={(this.state.showFinalAlSceneSwipeBottomTip)?("scrollBottomText"):("scrollBottomText hide")}>
+                        <div className="arrow left">
+                        <svg t={1567650388949} className="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id={1975}><path fill='#ffffff' d="M547.584 802.83648c20.89984 20.89984 20.89984 54.80448 0 75.70432-20.89984 20.91008-54.79424 20.91008-75.70432 0l-328.704-328.69376c-10.4448-10.45504-15.6672-24.14592-15.6672-37.84704s5.23264-27.40224 15.6672-37.84704l328.704-328.69376c20.91008-20.91008 54.80448-20.91008 75.70432 0 20.89984 20.89984 20.89984 54.79424 0 75.70432L256.74752 512 547.584 802.83648zM589.96736 512l290.83648-290.83648c20.89984-20.91008 20.89984-54.80448 0-75.70432-20.89984-20.91008-54.79424-20.91008-75.70432 0l-328.704 328.69376c-10.4448 10.45504-15.6672 24.14592-15.6672 37.84704s5.23264 27.40224 15.6672 37.84704l328.704 328.69376c20.91008 20.91008 54.80448 20.91008 75.70432 0 20.89984-20.89984 20.89984-54.80448 0-75.70432L589.96736 512z" p-id={1976} /></svg>
+                        </div>
+                        <div className="text">往下滑动</div>
+                        <div className="arrow right">
+                        <svg t={1567650388949} className="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id={1975}><path fill='#ffffff' d="M547.584 802.83648c20.89984 20.89984 20.89984 54.80448 0 75.70432-20.89984 20.91008-54.79424 20.91008-75.70432 0l-328.704-328.69376c-10.4448-10.45504-15.6672-24.14592-15.6672-37.84704s5.23264-27.40224 15.6672-37.84704l328.704-328.69376c20.91008-20.91008 54.80448-20.91008 75.70432 0 20.89984 20.89984 20.89984 54.79424 0 75.70432L256.74752 512 547.584 802.83648zM589.96736 512l290.83648-290.83648c20.89984-20.91008 20.89984-54.80448 0-75.70432-20.89984-20.91008-54.79424-20.91008-75.70432 0l-328.704 328.69376c-10.4448 10.45504-15.6672 24.14592-15.6672 37.84704s5.23264 27.40224 15.6672 37.84704l328.704 328.69376c20.91008 20.91008 54.80448 20.91008 75.70432 0 20.89984-20.89984 20.89984-54.80448 0-75.70432L589.96736 512z" p-id={1976} /></svg>
+                        </div>
+                    </div>
+                </div>
 
                 {/* 使用者自訂參數層 */}
                 <div className={(this.state.usrCustomizePlanetControlsIsOpen) ? ("usrCustomizePlanetControls") : ("usrCustomizePlanetControls hide")}>
+
                     {/* 星球大小 */}
-                    <div className="planetSize">
-                        <input type='range' min={this.state.planetRadius * 0.5} max={this.state.planetRadius * 1.5} defaultValue={this.state.planetRadius} step="1" ref={(self) => this.planetSizeInputDOMElement = self} onInput={() => this.handlePlanetSizeOnInput()}></input>
+                    <div className={(this.state.currentAdjustingPlanetProperty === 'size') ? ("controlItem planetSize") : ('controlItem planetSize hide')}>
+                        {/* 標題 */}
+                        <div className="title">
+                            {/* 上行 */}
+                            <div className="top">我希望我星球的</div>
+                            {/* 下行 */}
+                            <div className="bottom">大小</div>
+                        </div>
+                        {/* 調整的標題 */}
+                        <div className="adjustTitle">
+                            {this.state.planetSizeShowingText}
+                        </div>
+                        {/* 調整桿欄位 */}
+                        <div className="adjustBar">
+                            {/* 減號 */}
+                            <div className="increaseAndDecreaseIcon decrease">-</div>
+                            {/* 調整桿 */}
+                            <div className="adjustBarSelfDiv">
+                                <input type='range' min={this.state.planetRadius * 0.5} max={this.state.planetRadius * 1.5} defaultValue={this.state.planetRadius} step="1" ref={(self) => this.planetSizeInputDOMElement = self} onInput={() => this.handlePlanetSizeOnInput()}></input>
+                            </div>
+                            {/* 加號 */}
+                            <div className="increaseAndDecreaseIcon increase">+</div>
+                        </div>
                     </div>
+
+                    {/* 星球色調 */}
+                    <div className={(this.state.currentAdjustingPlanetProperty === 'tone') ? ("controlItem planetTone") : ('controlItem planetTone hide')}>
+                        {/* 標題 */}
+                        <div className="title">
+                            {/* 上行 */}
+                            <div className="top">我希望我星球的</div>
+                            {/* 下行 */}
+                            <div className="bottom">主要色調</div>
+                        </div>
+                        {/* 調整的標題 */}
+                        <div className="adjustTitle">
+                            {this.state.planetToneDiscription}
+                        </div>
+                        {/* 調整桿欄位 */}
+                        <div className="adjustBar">
+                            {/* 減號 */}
+                            <div className="increaseAndDecreaseIcon decrease">-</div>
+                            {/* 調整桿 */}
+                            <div className="adjustBarSelfDiv">
+                                <input type='range' min='0' max='99' defaultValue='50' step="0.5" ref={(self) => this.planetToneInputDOMElement = self} onInput={() => this.handlePlanetToneOnInput()}></input>
+                            </div>
+                            {/* 加號 */}
+                            <div className="increaseAndDecreaseIcon increase">+</div>
+                        </div>
+                    </div>
+
+                    {/* 山密度(數量) */}
+                    <div className={(this.state.currentAdjustingPlanetProperty === 'density') ? ("controlItem mountainDensity") : ('controlItem mountainDensity hide')}>
+                        {/* 標題 */}
+                        <div className="title">
+                            {/* 上行 */}
+                            <div className="top">我希望我星球上的</div>
+                            {/* 下行 */}
+                            <div className="bottom">山丘數量</div>
+                        </div>
+                        {/* 調整的標題 */}
+                        <div className="adjustTitle">
+                            {this.state.planetMountainDensityShowingText}
+                        </div>
+                        {/* 調整桿欄位 */}
+                        <div className="adjustBar">
+                            {/* 減號 */}
+                            <div className="increaseAndDecreaseIcon decrease">-</div>
+                            {/* 調整桿 */}
+                            <div className="adjustBarSelfDiv">
+                                <input type='range' min={this.state.greenMountainDensityMin} max={this.state.greenMountainDensityMax} defaultValue={this.state.greenMountainDensity} step="1" ref={self => this.GreenMountainGeoDensityBarDOMElement = self} onInput={() => this.handleGreenMountainDensityBarScroll()}></input>
+                            </div>
+                            {/* 加號 */}
+                            <div className="increaseAndDecreaseIcon increase">+</div>
+                        </div>
+                    </div>
+
+                    {/* 山高 */}
+                    <div className={(this.state.currentAdjustingPlanetProperty === 'height') ? ("controlItem mountainHeight") : ('controlItem mountainHeight hide')}>
+                        {/* 標題 */}
+                        <div className="title">
+                            {/* 上行 */}
+                            <div className="top">我希望我星球上的</div>
+                            {/* 下行 */}
+                            <div className="bottom">山的高度</div>
+                        </div>
+                        {/* 調整的標題 */}
+                        <div className="adjustTitle">{this.state.planetMountainHeightShowingText}</div>
+                        {/* 調整桿欄位 */}
+                        <div className="adjustBar">
+                            {/* 減號 */}
+                            <div className="increaseAndDecreaseIcon decrease">-</div>
+                            {/* 調整桿 */}
+                            <div className="adjustBarSelfDiv">
+                                <input type='range' min={this.state.greenMountainHeightMin} max={this.state.greenMountainHeightMax} defaultValue={this.state.greenMountainHeight} ref={self => this.GreenMountainGeoHeightBarDOMElement = self} onInput={() => this.handleGreenMountainHeightBarScroll()}></input>
+                            </div>
+                            {/* 加號 */}
+                            <div className="increaseAndDecreaseIcon increase">+</div>
+                        </div>
+                    </div>
+
                     {/* 確認取消鈕 */}
                     <div className={(this.state.usrCustomizePlanetControlsIsOpen) ? ("usrConfirmButtonContainer") : ('usrConfirmButtonContainer usrControlIsHide')}>
-                        <button className="button" onClick={() => this.handleUsrCancelButtonOnClick()}>保持原样</button>
-                        <button className="button confirm" onClick={() => this.handleUsrConfirmButtonOnClick()}>确定新样式</button>
+                        <button className="button" onClick={() => this.handleUsrCancelButtonOnClick()}>{this.updateCancelText()}</button>
+                        <button className="button confirm" onClick={() => this.handleUsrConfirmButtonOnClick()}>{this.updateConfirmText()}</button>
                     </div>
+
                 </div>
 
                 {/* debug用的按鈕 */}
@@ -1244,8 +1499,8 @@ V117.8z" />
                     {/* 即時更新翠綠山密度、高度 */}
                     <div className="updateGreenMountainGeo">
                         <div className="text">綠山密度、高度</div>
-                        <input type='range' className="updateGreenMountainGeoDensity" min='11' max='40' defaultValue={this.state.greenMountainDensity} ref={self => this.GreenMountainGeoDensityBarDOMElement = self} onInput={() => this.handleGreenMountainDensityBarScroll()} />
-                        <input type='range' className="updateGreenMountainGeoHeight" min='0' max='100' defaultValue={this.state.greenMountainHeight} ref={self => this.GreenMountainGeoHeightBarDOMElement = self} onInput={() => this.handleGreenMountainHeightBarScroll()} />
+                        {/* <input type='range' className="updateGreenMountainGeoDensity" min='11' max='40' defaultValue={this.state.greenMountainDensity} ref={self => this.GreenMountainGeoDensityBarDOMElement = self} onInput={() => this.handleGreenMountainDensityBarScroll()} />
+                        <input type='range' className="updateGreenMountainGeoHeight" min='0' max='100' defaultValue={this.state.greenMountainHeight} ref={self => this.GreenMountainGeoHeightBarDOMElement = self} onInput={() => this.handleGreenMountainHeightBarScroll()} /> */}
                     </div>
                     {/* 打開關閉使用者參數層 */}
                     <div className="openCloseUsrCustomizePlanetControlsOpenClose">

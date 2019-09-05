@@ -47,6 +47,7 @@ export default class Engine {
 
   // Update render
   update() {
+    // 如果場景內的mesh數量>1, 
     let i = this.meshCount;
     while (--i >= 0) {
       this.meshListeners[i].apply(this, null);

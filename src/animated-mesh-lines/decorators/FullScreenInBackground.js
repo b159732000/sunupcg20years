@@ -8,7 +8,8 @@ export default (Target) => class FullScreenInBackground extends Target {
     this.dom.style.top = '0';
     this.dom.style.left = '0';
     this.dom.style.zIndex = '-1';
-    document.body.appendChild(this.dom);
+    // document.body.appendChild(this.dom);
+    document.getElementById('IntroTextPageContainer').appendChild(this.dom);
 
     this.resize = this.resize.bind(this);
 
