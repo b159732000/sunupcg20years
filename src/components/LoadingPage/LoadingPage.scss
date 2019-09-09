@@ -1,9 +1,10 @@
 .LoadingPage {
-    position: absolute;
-    top: 0;
-    left: 0;
-    height: 100%;
-    width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  z-index: 3000;
   // 载入画面
   .loadingPage {
     background-color: #000;
@@ -17,20 +18,61 @@
       transition: opacity 1s 1s;
       opacity: 0;
       pointer-events: none;
+      svg {
+        // top: -50% !important;
+        transform: translate(-50%, -130%);
+        transition: all 0.6s ease-in;
+      }
+      .year {
+        // top: 78%;
+        // opacity: 0;
+        // transition: all 0.4s ease-in;
+        span {
+          opacity: 0;
+          transition: all 0.6s ease-in;
+        }
+      }
     }
     svg {
       max-width: 100%;
       max-height: 100%;
       position: absolute;
-      top: 50%;
+      top: 100%;
       left: 50%;
-      transform: translate(-50%, -50%);
+      transform: translate(-50%, 0%);
+      animation: rocketManShowUp 1s 0.7s cubic-bezier(.41,.07,.44,.98) forwards;
+      @keyframes rocketManShowUp {
+        0% {
+          top: 100%;
+        }
+        100% {
+          top: 10%;
+        }
+      }
     }
     .text {
       position: absolute;
       top: 0;
       left: 0;
       color: #fff;
+    }
+    .year {
+      color: #fed2ad;
+      font-family: Microsoft JhengHei;
+      position: absolute;
+      top: 72%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      animation: loadingPageTextShowing 1s 2.2s forwards;
+      @keyframes loadingPageTextShowing {
+        0% {
+          opacity: 0;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
     }
   }
 }

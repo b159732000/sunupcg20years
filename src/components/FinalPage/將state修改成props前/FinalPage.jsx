@@ -5,8 +5,7 @@ import {
     updateFromServerUsrPlanetRadius,
     updateFromServerPlanetTone,
     updateFromServerUsrPlanetMountainHeight,
-    updateFromServerUsrPlanetMountainDensity,
-    changeBGAlignToRight
+    updateFromServerUsrPlanetMountainDensity
 } from '../../actions/actions.js';
 
 import THREE from '../../ThreeFiles/three.js';
@@ -15,7 +14,6 @@ import TWEEN from '@tweenjs/tween.js';
 import { SphereBufferGeometry } from 'three';
 import SwipeListener from 'swipe-listener';
 import TypeWriter from 'react-typewriter';
-const axios = require('axios');
 
 var glslify = require('glslify')
 
@@ -135,15 +133,10 @@ function mapStateToProps(state) {
     // 只傳入state中指定的值
     return {
         usrOpenID: state.myFirstReducers.usrOpenID,
-        fromServerUsrName: state.myFirstReducers.fromServerUsrName,
         fromServerUsrPlanetRadius: state.myFirstReducers.fromServerUsrPlanetRadius,
         fromServerUsrPlanetTone: state.myFirstReducers.fromServerUsrPlanetTone,
         fromServerUsrPlanetMountainHeight: state.myFirstReducers.fromServerUsrPlanetMountainHeight,
         fromServerUsrPlanetMountainDensity: state.myFirstReducers.fromServerUsrPlanetMountainDensity,
-        lotteryNumber: state.myFirstReducers.lotteryNumber,
-        bgAlignToRight: state.myFirstReducers.bgAlignToRight,       //代表顯示最終畫面的第一段打字機畫面
-        fromServerUsrWorkDays: state.myFirstReducers.fromServerUsrWorkDays,
-        thisPersonIdIsInDataBase: state.myFirstReducers.thisPersonIdIsInDataBase
     }
 }
 
@@ -153,7 +146,6 @@ let base, geometryBase, baseMat;    //地球藍海的OBJECT, GEOMETRY, MATERIAL
 let terran, terranGeom, material;   //翠綠山的OBJECT, GEOMETRY, MATERIAL
 let highTerran, terranHighGeom, highTerranMat;   //黃綠高山的OBJECT, GEOMETRY, MATERIAL
 let ground, groundGeo, groundMat;   //地面
-let bgFirstBase, bgSecondBase, bgThirdBase, bgForthBase;  //背景的四颗球
 
 class FinalPage extends React.Component {
     constructor(props) {
@@ -166,14 +158,14 @@ class FinalPage extends React.Component {
 
             // 我自己的設定
             myPlanetAutoRotate: true,          //主要星球是否自轉
-            antialias: true,                   //是否開啟反鋸齒
+            antialias: false,                   //是否開啟反鋸齒
             sceneBackground: 0x000000,            //場景背景色(0x3a3a3a深灰、0xffffff白色)
             directionalShadow: true,            //直射光陰影
             addBaseGround: false,               //是否添加場景基準地板
             afterMountSecondsOpenUsrCustomizeControls: 0,       //進入頁面候n秒開啟使用者控制介面
 
             // 預設的星球資訊
-            planetRadius: 275,                  //星球半徑
+            planetRadius: 400,                  //星球半徑
             greenMountainDensityMax: 40,        // 山密度上限
             greenMountainDensityMin: 11,        // 山密度下限
             greenMountainDensity: 30,           //高山密度, 数字越小越密
@@ -238,7 +230,7 @@ class FinalPage extends React.Component {
             planetMountainHeightShowingText: '剛好就好，我喜歡有高山有平原',//目前星球上的山丘数量形容词
 
             // 使用者調整後的星球資訊
-            usrPlanetRadius: 275,               //星球半徑
+            usrPlanetRadius: 400,               //星球半徑
             usrPlanetTone: 400,                 //星球色調
             usrPlanetMountainHeight: 400,       //山高
             usrPlanetMountainDensity: 400,      //山密度
@@ -257,133 +249,69 @@ class FinalPage extends React.Component {
             showFinalUsrSceneSwipeTopTip: false,         // 显示结尾个人画面往上滑提示
             showFinalSecondSentence: false,              // 显示结尾画面第二句话
             showFinalAlSceneSwipeBottomTip: false,       // 显示结尾个人画面往下滑提示
-            isInFinalPageNumber: 1,                      //目前是结果文字第几页
-            firstPageBottomSentenceIsShowing: false,     // 展示第一页下半文字
         }
     }
 
     componentDidMount = () => {
+
+        // 檢測要用使用者預先設定的星球參數或用預設星球參數
+        // 前者為資料庫無資料，用此頁state中設定的預設星球參數
+        // 後者為資料庫有資料，用stroe中的星球參數產生星球，並且跳過使用者自訂資訊頁
+        if (this.props.fromServerUsrPlanetRadius == null ||
+            this.props.fromServerUsrPlanetRadius === '' ||
+            this.props.fromServerUsrPlanetTone == null ||
+            this.props.fromServerUsrPlanetTone === '' ||
+            this.props.fromServerUsrPlanetMountainHeight == null ||
+            this.props.fromServerUsrPlanetMountainHeight === '' ||
+            this.props.fromServerUsrPlanetMountainDensity == null ||
+            this.props.fromServerUsrPlanetMountainDensity === ''
+        ) {
+            this.init();
+            this.animate();
+
+            // 為了讓chrome extention Three.js Inspector可以讀到場景
+            window.scene = scene;
+
+            // 更新THREE長寬及比例
+            window.addEventListener('resize', this.windowOnResize);
+        } else {
+            this.setState({
+                planetRadius: this.props.fromServerUsrPlanetRadius,
+                greenMountainDensity: this.props.fromServerUsrPlanetMountainDensity,
+                greenMountainHeight: this.props.fromServerUsrPlanetMountainHeight,
+                planetUseToneIndex: this.props.fromServerUsrPlanetTone,
+            }, () => {
+                this.init();
+                this.animate();
+
+                // 為了讓chrome extention Three.js Inspector可以讀到場景
+                window.scene = scene;
+
+                // 更新THREE長寬及比例
+                window.addEventListener('resize', this.windowOnResize);
+            })
+        }
+
+        //進入頁面後五秒，開啟使用者調整視窗
         setTimeout(() => {
-            console.log('FinalPage從store讀取此人是否在資料庫中:' + this.props.thisPersonIdIsInDataBase);
-            // 此人是否在資料庫中
-            if (this.props.thisPersonIdIsInDataBase) {
-                // 此人在資料庫中
-                // 檢測要用使用者預先設定的星球參數或用預設星球參數
-                // 前者為資料庫無資料，用此頁state中設定的預設星球參數
-                // 後者為資料庫有資料，用stroe中的星球參數放入此頁state，並且跳過使用者自訂資訊頁
-                if (this.props.fromServerUsrPlanetRadius == null ||
-                    this.props.fromServerUsrPlanetRadius === '' ||
-                    this.props.fromServerUsrPlanetTone == null ||
-                    this.props.fromServerUsrPlanetTone === '' ||
-                    this.props.fromServerUsrPlanetMountainHeight == null ||
-                    this.props.fromServerUsrPlanetMountainHeight === '' ||
-                    this.props.fromServerUsrPlanetMountainDensity == null ||
-                    this.props.fromServerUsrPlanetMountainDensity === ''
-                ) {
-                    console.log('資料庫無資料，用此頁(FinalPage)中state設定的預設星球參數');
-                    this.init();
-                    this.animate();
+            this.setState({
+                usrCustomizePlanetControlsIsOpen: true
+            })
+        }, this.state.afterMountSecondsOpenUsrCustomizeControls * 1000);
 
-                    // 為了讓chrome extention Three.js Inspector可以讀到場景
-                    window.scene = scene;
+        // 掛載偵測手勢滑動的動作Listener
+        if (this.state.addSwipeListener) {
+            this.addTouchMoveListener();
+        }
 
-                    // 更新THREE長寬及比例
-                    window.addEventListener('resize', this.windowOnResize);
-
-                    //進入頁面後五秒，開啟使用者調整視窗
-                    setTimeout(() => {
-                        this.setState({
-                            usrCustomizePlanetControlsIsOpen: true
-                        })
-                    }, this.state.afterMountSecondsOpenUsrCustomizeControls * 1000);
-                } else {
-                    console.log('資料庫有資料，用stroe中的星球參數放入此頁state，並且跳過使用者自訂資訊頁')
-                    this.setState({
-                        planetRadius: this.props.fromServerUsrPlanetRadius,
-                        greenMountainDensity: this.props.fromServerUsrPlanetMountainDensity,
-                        greenMountainHeight: this.props.fromServerUsrPlanetMountainHeight,
-                        planetUseToneIndex: this.props.fromServerUsrPlanetTone,
-                    }, () => {
-                        this.init();
-                        this.animate();
-
-                        // 為了讓chrome extention Three.js Inspector可以讀到場景
-                        window.scene = scene;
-
-                        // 更新THREE長寬及比例
-                        window.addEventListener('resize', this.windowOnResize);
-
-                        // 顯示最終畫面需要這些步驟
-                        this.setState({
-                            currentAdjustingPlanetProperty: '',
-                            usrCustomizePlanetControlsIsOpen: false,     //關閉使用者自訂星球介面
-                            isInFinalPage: true,                          //進入最終成果呈現畫面，為了讓偵測手勢滑動方向啟用
-                            showFinalFirstSentence: true,               // 显示结尾画面第一句话
-                        })
-
-                        // // 將背景圖移到最右邊
-                        // this.props.changeBGAlignToRight(true);
-                    })
-                }
-
-                // 掛載偵測手勢滑動的動作Listener
-                if (this.state.addSwipeListener) {
-                    this.addTouchMoveListener();
-                }
-
-                setTimeout(() => {
-                    // 随移动杆决定星球大小形容词
-                    this.updatePlanetSizeDescription();
-                    // 随移动杆决定星球山密度形容词
-                    this.updatePlanetMountainDensityDescription();
-                    // 随移动杆决定星球山高度形容词
-                    this.updatePlanetMountainHeightDescription();
-                }, 500)
-            } else {
-                // 此人不在資料庫中
-                console.log('Final從store讀到此人不在資料庫中')
-                this.setState({
-                    planetRadius: 275,
-                    greenMountainDensity: 30,
-                    greenMountainHeight: 70,
-                    planetUseToneIndex: 4,
-                }, () => {
-                    this.init();
-                    this.animate();
-
-                    // 為了讓chrome extention Three.js Inspector可以讀到場景
-                    window.scene = scene;
-
-                    // 更新THREE長寬及比例
-                    window.addEventListener('resize', this.windowOnResize);
-
-                    // 顯示最終畫面需要這些步驟
-                    this.setState({
-                        currentAdjustingPlanetProperty: '',
-                        usrCustomizePlanetControlsIsOpen: false,     //關閉使用者自訂星球介面
-                        isInFinalPage: true,                          //進入最終成果呈現畫面，為了讓偵測手勢滑動方向啟用
-                        showFinalFirstSentence: true,               // 显示结尾画面第一句话
-                    })
-
-                    this.changeCameraPositionTo('viewAllPlanet');
-                    this.setState({
-                        showFinalFirstSentence: false,               // 显示结尾画面第一句话
-                        showFinalUsrSceneSwipeTopTip: false,         // 显示结尾个人画面往上滑提示
-                        showFinalSecondSentence: true,              // 显示结尾画面第二句话
-                        isInFinalPageNumber: 2
-                    })
-
-                    // 掛載偵測手勢滑動的動作Listener
-                    if (this.state.addSwipeListener) {
-                        this.addTouchMoveListener();
-                    }
-                    // // 將背景圖移到最右邊
-                    // this.props.changeBGAlignToRight(true);
-                })
-            }
-        }, 100);
-
-
+        setTimeout(() => {
+            // 随移动杆决定星球大小形容词
+            this.updatePlanetSizeDescription();
+            // 随移动杆决定星球山密度形容词
+            this.updatePlanetMountainDensityDescription();
+            // 随移动杆决定星球山高度形容词
+            this.updatePlanetMountainHeightDescription();
+        }, 500)
 
     }
 
@@ -410,7 +338,7 @@ class FinalPage extends React.Component {
     init = () => {
         // - Render定義渲染器
         renderer = new THREE.WebGLRenderer({
-            alpha: true,
+            alpna: true,
             antialias: this.state.antialias,
         });
         renderer.setSize(this.threeCanvasDOMElement.clientWidth, this.threeCanvasDOMElement.clientHeight);
@@ -420,8 +348,7 @@ class FinalPage extends React.Component {
         renderer.shadowMapSoft = true;
         // 設定背景色
         // renderer.setClearColor(0xe8e8e8, 1);
-        renderer.setClearColor(0x000000, 0); //default
-        // renderer.setClearAlpha(0.0);
+        // renderer.setClearColor(0x000000, 0); //default
 
         // - 創建相機
         // intro畫面的相機參數
@@ -441,7 +368,7 @@ class FinalPage extends React.Component {
         // 創建場景
         scene = new THREE.Scene();
         scene.name = 'MainScene';
-        // scene.background = new THREE.Color(this.state.sceneBackground);
+        scene.background = new THREE.Color(this.state.sceneBackground);
 
         // 渲染前半段介紹文字畫面
         // this.renderIntro();
@@ -528,7 +455,7 @@ class FinalPage extends React.Component {
         this.addBgPlanetForth();
 
         // 渲染文字到Three中
-        // this.renderThreeText();
+        this.renderThreeText();
 
         // - 創建場景的地面
         // 開發模式中地面面積小，正式版地面面積大
@@ -628,8 +555,6 @@ class FinalPage extends React.Component {
     animate = () => {
         requestID = requestAnimationFrame(this.animate);
 
-        // renderer.setClearColor(0x000000, 0); //default
-
         // required if controls.enableDamping or controls.autoRotate are set to true
         if (this.state.orbitControlsIsOpen) {
             controls.target = new THREE.Vector3(0, this.state.planetRadius, 0);       //控制焦点始終正對主星球球心
@@ -638,8 +563,7 @@ class FinalPage extends React.Component {
         }
 
         // 设定相机始终正对的方向
-        // camera.lookAt(new THREE.Vector3(0, this.state.planetRadius, 0));       //控制焦点始終正對主星球球心
-        camera.lookAt(new THREE.Vector3(0, this.planetSizeInputDOMElement.value, 0));       //控制焦点始終正對主星球球心
+        camera.lookAt(new THREE.Vector3(0, this.state.planetRadius, 0));       //控制焦点始終正對主星球球心
 
         // Tween起作用必須設定
         TWEEN.update();
@@ -647,10 +571,6 @@ class FinalPage extends React.Component {
         // 地球自轉 (繞著y軸轉)
         if (this.state.myPlanetAutoRotate) {
             base.rotation.y += 0.003;
-            bgFirstBase.rotation.y += 0.003;
-            bgSecondBase.rotation.y += 0.003;
-            bgThirdBase.rotation.y += 0.003;
-            bgForthBase.rotation.y += 0.003;
         }
 
         // fov等等更新後須調用
@@ -661,8 +581,6 @@ class FinalPage extends React.Component {
 
     // 創建背景球一
     addBgPlanetFirst = () => {
-        let toneIndex = 6;
-
         // - 創建基本球體 (地球藍藍的海)
         // 創建球體幾何
         // 對幾何的頂點做出高低位移變化
@@ -676,10 +594,10 @@ class FinalPage extends React.Component {
         //     v[['x', 'y', 'z'][~~(Math.random() * 5)]] += Math.random() * 10;
         // })
         let bgFirstBaseMat = new THREE.MeshLambertMaterial({
-            color: this.state.seaColor[toneIndex],
+            color: 0x76acda,
             // shading: THREE.FlatShading,
         });
-        bgFirstBase = new THREE.Mesh(bgFirstGeometryBase, bgFirstBaseMat);
+        let bgFirstBase = new THREE.Mesh(bgFirstGeometryBase, bgFirstBaseMat);
         bgFirstBase.name = 'bgFirstBase';
         bgFirstGeometryBase.name = 'bgFirstGeometryBase';
         bgFirstBaseMat.name = 'bgFirstBaseMat';
@@ -700,13 +618,13 @@ class FinalPage extends React.Component {
         // 添加名字給這個物件、幾何、材質
         // 啟用陰影 (尚未做)
         // 添加到場景中
-        let bgFirstTerranGeom = new THREE.SphereGeometry(this.state.planetRadius - 10, 30, 30);
+        let bgFirstTerranGeom = new THREE.SphereGeometry(this.state.planetRadius - 2, 30, 30);
         bgFirstTerranGeom.vertices.forEach((g) => {
             // g[['x', 'y', 'z'][~~(Math.random() * 10密度數字越小越密)]] += Math.random() * 40山的高度數字越大越高;
             g[['x', 'y', 'z'][~~(Math.random() * this.state.greenMountainDensity)]] += Math.random() * this.state.greenMountainHeight;
         })
         material = new THREE.MeshLambertMaterial({
-            color: this.state.terranColor[toneIndex],
+            color: 0xb8b658,
             // shading: THREE.FlatShading
         })
         let bgFirstTerran = new THREE.Mesh(bgFirstTerranGeom, material);
@@ -731,7 +649,7 @@ class FinalPage extends React.Component {
             g[['x', 'y', 'z'][~~(Math.random() * 10)]] += Math.random() * 40;
         })
         highTerranMat = new THREE.MeshLambertMaterial({
-            color: this.state.highTerranColor[toneIndex],
+            color: 0xe3c97f,
         });
         highTerran = new THREE.Mesh(terranHighGeom, highTerranMat);
         highTerran.name = 'highTerran';
@@ -744,8 +662,6 @@ class FinalPage extends React.Component {
 
     // 創建背景球二
     addBgPlanetSecond = () => {
-        let toneIndex = 9;
-
         // - 創建基本球體 (地球藍藍的海)
         // 創建球體幾何
         // 對幾何的頂點做出高低位移變化
@@ -759,10 +675,10 @@ class FinalPage extends React.Component {
         //     v[['x', 'y', 'z'][~~(Math.random() * 5)]] += Math.random() * 10;
         // })
         let bgSecondBaseMat = new THREE.MeshLambertMaterial({
-            color: this.state.seaColor[toneIndex],
+            color: 0x76acda,
             // shading: THREE.FlatShading,
         });
-        bgSecondBase = new THREE.Mesh(bgSecondGeometryBase, bgSecondBaseMat);
+        let bgSecondBase = new THREE.Mesh(bgSecondGeometryBase, bgSecondBaseMat);
         bgSecondBase.name = 'bgSecondBase';
         bgSecondGeometryBase.name = 'bgSecondGeometryBase';
         bgSecondBaseMat.name = 'bgSecondBaseMat';
@@ -783,13 +699,13 @@ class FinalPage extends React.Component {
         // 添加名字給這個物件、幾何、材質
         // 啟用陰影 (尚未做)
         // 添加到場景中
-        let bgSecondTerranGeom = new THREE.SphereGeometry(this.state.planetRadius - 10, 30, 30);
+        let bgSecondTerranGeom = new THREE.SphereGeometry(this.state.planetRadius - 2, 30, 30);
         bgSecondTerranGeom.vertices.forEach((g) => {
             // g[['x', 'y', 'z'][~~(Math.random() * 10密度數字越小越密)]] += Math.random() * 40山的高度數字越大越高;
             g[['x', 'y', 'z'][~~(Math.random() * this.state.greenMountainDensity)]] += Math.random() * this.state.greenMountainHeight;
         })
         material = new THREE.MeshLambertMaterial({
-            color: this.state.terranColor[toneIndex],
+            color: 0xb8b658,
             // shading: THREE.FlatShading
         })
         let bgSecondTerran = new THREE.Mesh(bgSecondTerranGeom, material);
@@ -814,7 +730,7 @@ class FinalPage extends React.Component {
             g[['x', 'y', 'z'][~~(Math.random() * 10)]] += Math.random() * 40;
         })
         highTerranMat = new THREE.MeshLambertMaterial({
-            color: this.state.highTerranColor[toneIndex],
+            color: 0xe3c97f,
         });
         highTerran = new THREE.Mesh(terranHighGeom, highTerranMat);
         highTerran.name = 'highTerran';
@@ -827,8 +743,6 @@ class FinalPage extends React.Component {
 
     // 創建背景球三
     addBgPlanetThird = () => {
-        let toneIndex = 0;
-
         // - 創建基本球體 (地球藍藍的海)
         // 創建球體幾何
         // 對幾何的頂點做出高低位移變化
@@ -842,10 +756,10 @@ class FinalPage extends React.Component {
         //     v[['x', 'y', 'z'][~~(Math.random() * 5)]] += Math.random() * 10;
         // })
         let bgThirdBaseMat = new THREE.MeshLambertMaterial({
-            color: this.state.seaColor[toneIndex],
+            color: 0x76acda,
             // shading: THREE.FlatShading,
         });
-        bgThirdBase = new THREE.Mesh(bgThirdGeometryBase, bgThirdBaseMat);
+        let bgThirdBase = new THREE.Mesh(bgThirdGeometryBase, bgThirdBaseMat);
         bgThirdBase.name = 'bgThirdBase';
         bgThirdGeometryBase.name = 'bgThirdGeometryBase';
         bgThirdBaseMat.name = 'bgThirdBaseMat';
@@ -866,13 +780,13 @@ class FinalPage extends React.Component {
         // 添加名字給這個物件、幾何、材質
         // 啟用陰影 (尚未做)
         // 添加到場景中
-        let bgThirdTerranGeom = new THREE.SphereGeometry(this.state.planetRadius - 10, 30, 30);
+        let bgThirdTerranGeom = new THREE.SphereGeometry(this.state.planetRadius - 2, 30, 30);
         bgThirdTerranGeom.vertices.forEach((g) => {
             // g[['x', 'y', 'z'][~~(Math.random() * 10密度數字越小越密)]] += Math.random() * 40山的高度數字越大越高;
             g[['x', 'y', 'z'][~~(Math.random() * this.state.greenMountainDensity)]] += Math.random() * this.state.greenMountainHeight;
         })
         material = new THREE.MeshLambertMaterial({
-            color: this.state.terranColor[toneIndex],
+            color: 0xb8b658,
             // shading: THREE.FlatShading
         })
         let bgThirdTerran = new THREE.Mesh(bgThirdTerranGeom, material);
@@ -897,7 +811,7 @@ class FinalPage extends React.Component {
             g[['x', 'y', 'z'][~~(Math.random() * 10)]] += Math.random() * 40;
         })
         highTerranMat = new THREE.MeshLambertMaterial({
-            color: this.state.highTerranColor[toneIndex],
+            color: 0xe3c97f,
         });
         highTerran = new THREE.Mesh(terranHighGeom, highTerranMat);
         highTerran.name = 'highTerran';
@@ -910,8 +824,6 @@ class FinalPage extends React.Component {
 
     // 創建背景球四
     addBgPlanetForth = () => {
-        let toneIndex = 8;
-
         // - 創建基本球體 (地球藍藍的海)
         // 創建球體幾何
         // 對幾何的頂點做出高低位移變化
@@ -925,10 +837,10 @@ class FinalPage extends React.Component {
         //     v[['x', 'y', 'z'][~~(Math.random() * 5)]] += Math.random() * 10;
         // })
         let bgForthBaseMat = new THREE.MeshLambertMaterial({
-            color: this.state.seaColor[toneIndex],
+            color: 0x76acda,
             // shading: THREE.FlatShading,
         });
-        bgForthBase = new THREE.Mesh(bgForthGeometryBase, bgForthBaseMat);
+        let bgForthBase = new THREE.Mesh(bgForthGeometryBase, bgForthBaseMat);
         bgForthBase.name = 'bgForthBase';
         bgForthGeometryBase.name = 'bgForthGeometryBase';
         bgForthBaseMat.name = 'bgForthBaseMat';
@@ -949,13 +861,13 @@ class FinalPage extends React.Component {
         // 添加名字給這個物件、幾何、材質
         // 啟用陰影 (尚未做)
         // 添加到場景中
-        let bgForthTerranGeom = new THREE.SphereGeometry(this.state.planetRadius - 10, 30, 30);
+        let bgForthTerranGeom = new THREE.SphereGeometry(this.state.planetRadius - 2, 30, 30);
         bgForthTerranGeom.vertices.forEach((g) => {
             // g[['x', 'y', 'z'][~~(Math.random() * 10密度數字越小越密)]] += Math.random() * 40山的高度數字越大越高;
             g[['x', 'y', 'z'][~~(Math.random() * this.state.greenMountainDensity)]] += Math.random() * this.state.greenMountainHeight;
         })
         material = new THREE.MeshLambertMaterial({
-            color: this.state.terranColor[toneIndex],
+            color: 0xb8b658,
             // shading: THREE.FlatShading
         })
         let bgForthTerran = new THREE.Mesh(bgForthTerranGeom, material);
@@ -980,7 +892,7 @@ class FinalPage extends React.Component {
             g[['x', 'y', 'z'][~~(Math.random() * 10)]] += Math.random() * 40;
         })
         highTerranMat = new THREE.MeshLambertMaterial({
-            color: this.state.highTerranColor[toneIndex],
+            color: 0xe3c97f,
         });
         highTerran = new THREE.Mesh(terranHighGeom, highTerranMat);
         highTerran.name = 'highTerran';
@@ -1127,9 +1039,9 @@ class FinalPage extends React.Component {
         switch (this.state.currentAdjustingPlanetProperty) {
             case 'size':
                 // 關閉使用者自訂星球介面
-                // this.setState({
-                //     usrCustomizePlanetControlsIsOpen: false
-                // })
+                this.setState({
+                    usrCustomizePlanetControlsIsOpen: false
+                })
                 break;
             case 'tone':
                 this.setState({
@@ -1171,9 +1083,6 @@ class FinalPage extends React.Component {
                 })
                 break;
             case 'height':
-                // 上傳使用者自訂地球資訊到伺服器
-                this.pushUsrPlanetPropertiesToServer();
-
                 this.setState({
                     currentAdjustingPlanetProperty: '',
                     usrCustomizePlanetControlsIsOpen: false,     //關閉使用者自訂星球介面
@@ -1184,9 +1093,6 @@ class FinalPage extends React.Component {
             default:
                 break;
         }
-
-        // 將背景圖移到最右邊
-        this.props.changeBGAlignToRight(true);
     }
 
     // 更新確認鈕的文字
@@ -1377,7 +1283,6 @@ class FinalPage extends React.Component {
                     showFinalFirstSentence: false,               // 显示结尾画面第一句话
                     showFinalUsrSceneSwipeTopTip: false,         // 显示结尾个人画面往上滑提示
                     showFinalSecondSentence: true,              // 显示结尾画面第二句话
-                    isInFinalPageNumber: 2
                 })
             }
 
@@ -1387,7 +1292,6 @@ class FinalPage extends React.Component {
                     showFinalFirstSentence: true,               // 显示结尾画面第一句话
                     showFinalSecondSentence: false,              // 显示结尾画面第二句话
                     showFinalAlSceneSwipeBottomTip: false,       // 显示结尾个人画面往下滑提示
-                    isInFinalPageNumber: 1
                 })
             }
         })
@@ -1397,16 +1301,10 @@ class FinalPage extends React.Component {
     triggerOnFinalFirstSentenceEnd = () => {
         this.setState({
             showFinalUsrSceneSwipeTopTip: true,
-            firstPageBottomSentenceIsShowing: true
         })
     }
 
-    // 结尾第一页第二句话说完触发
-    treggerOnFinalFirstPageSecondSentenceEnd = () => {
-
-    }
-
-    // 结尾第二页第一句话说完触发
+    // 结尾第二句话说完触发
     triggerOnFinalSecondSentenceEnd = () => {
         this.setState({
             showFinalAlSceneSwipeBottomTip: true,
@@ -1415,8 +1313,8 @@ class FinalPage extends React.Component {
 
     // 随移动杆决定星球大小形容词
     updatePlanetSizeDescription = () => {
-        let max = 350;
-        let min = 200;
+        let max = this.state.planetRadius * 1.5;
+        let min = this.state.planetRadius * 0.5;
         let currentValue = this.planetSizeInputDOMElement.value;
 
         // 目前游標在移動桿中的比例
@@ -1448,15 +1346,15 @@ class FinalPage extends React.Component {
 
         if (currentPercentage <= 0.33) {
             this.setState({
-                planetMountainDensityShowingText: '很多很多，是個多山的星球'
+                planetMountainDensityShowingText: '不要太多山，我喜歡多一點平原'
             })
         } else if (currentPercentage > 0.33 && currentPercentage <= 0.66) {
             this.setState({
-                planetMountainDensityShowingText: '不多不少刚刚好'
+                planetMountainDensityShowingText: '不大不小刚刚好'
             })
         } else if (currentPercentage > 0.66) {
             this.setState({
-                planetMountainDensityShowingText: '不要太多山，我喜歡多一點平原'
+                planetMountainDensityShowingText: '很多很多，是個多山的星球'
             })
         }
     }
@@ -1485,38 +1383,6 @@ class FinalPage extends React.Component {
         }
     }
 
-    // 上傳使用者調整完的星球參數，並更新到store中
-    pushUsrPlanetPropertiesToServer = () => {
-        // 將使用者設定的參數值存到臨時變數中
-        let usrSettingPlanetRadius = this.planetSizeInputDOMElement.value;
-        let usrSettingPlanetTone = this.state.planetUseToneIndex;
-        let usrSettingPlanetMountainHeight = this.GreenMountainGeoHeightBarDOMElement.value;
-        let usrSettingPlanetMountainDensity = this.GreenMountainGeoDensityBarDOMElement.value;
-
-        // 更新到store中
-        this.props.updateFromServerUsrPlanetRadius(usrSettingPlanetRadius);
-        this.props.updateFromServerPlanetTone(usrSettingPlanetTone);
-        this.props.updateFromServerUsrPlanetMountainHeight(usrSettingPlanetMountainHeight);
-        this.props.updateFromServerUsrPlanetMountainDensity(usrSettingPlanetMountainDensity);
-
-        // 上傳伺服器
-        if (window.enableWeXinLogIn) {
-            console.log('開始上傳使用者設定到伺服器');
-            axios('http://hvr.isunupcg.com/year2019/save.php', {
-                params: {
-                    openID: this.props.usrOpenID,
-                    usrPlanetRadius: usrSettingPlanetRadius,
-                    usrPlanetTone: usrSettingPlanetTone,
-                    usrPlanetMountainHeight: usrSettingPlanetMountainHeight,
-                    usrPlanetMountainDensity: usrSettingPlanetMountainDensity
-                }
-            }).then(resp => {
-                console.log('成功獲得伺服器回應');
-                console.log(resp);
-            })
-        }
-    }
-
     render() {
         return (
             <div className="FinalPageContainer">
@@ -1529,38 +1395,12 @@ class FinalPage extends React.Component {
 
                 {/* 目前宇宙中發現了76顆星球，我們還在持續探索中 */}
                 {/* <div className="threejsText">目前为止，骄阳宇宙发现了76颗星球，太空船还在持续搜索中...</div> */}
-                <div className={(this.state.isInFinalPageNumber === 1) ? ("finalText") : ("finalText second")}>
-                    {/* 结果第一页上半文字 */}
+                <div className="finalText">
                     <div className="yourPlanetText">
-                        {(this.props.bgAlignToRight) ? (<TypeWriter typing={1} maxDelay={100} minDelay={100} onTypingEnd={() => this.triggerOnFinalFirstSentenceEnd()}>
-                            <div>恭喜你{this.props.fromServerUsrName}</div><div>创造了第<span style={{ fontSize: '3.5rem', fontWeight: 'bold', color: 'orange' }}> {this.props.lotteryNumber} </span>号星球</div>
-                        </TypeWriter>) : (null)}
+                        {(this.state.showFinalFirstSentence) ? (<TypeWriter typing={1} maxDelay={100} minDelay={100} onTypingEnd={() => this.triggerOnFinalFirstSentenceEnd()}>
+                            恭喜你，创造了第<span style={{ fontSize: '2rem', fontWeight: 'bold' }}>66</span>号星球
+                    </TypeWriter>) : (null)}
                     </div>
-
-                    {/* 结果第一页下半文字 */}
-                    <div className={"finalTextFirstPageBottom"}>
-                        {(this.state.firstPageBottomSentenceIsShowing) ? (
-                            <TypeWriter typing={1} maxDelay={100} minDelay={100} >
-                                <div className="sentence first">今天是你加入骄阳宇宙的第<span style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>{this.props.fromServerUsrWorkDays}</span>天</div>
-                                <div className="sentence second">骄阳<span style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>20</span>周年 感谢有你同行</div>
-                            </TypeWriter>
-                        ) : (null)}
-                    </div>
-
-                    {/* 骄阳交互媒体部 */}
-                    <div className="logo">
-                        <div>Powered by 交互媒体部</div>
-                        <div><img src={require('../../images/Logo.png')} alt="" /></div>
-                    </div>
-
-                    {/* 第二页结果年份 */}
-                    <div className="year"><span>1999.9.9  -  2019.9.9</span></div>
-
-                    {/* 展示給非公司人看的文字 */}
-                    <div className={(this.props.thisPersonIdIsInDataBase) ? ("finalTextFirstPageBottom hide") : ("finalTextFirstPageBottom")}>
-                        <div className="sentence second">骄阳<span style={{ fontSize: '1.8rem', fontWeight: 'bold' }}>20</span>周年 感谢有你同行</div>
-                    </div>
-
                     <div className="allPlanetText">
                         {(this.state.showFinalSecondSentence) ? (<TypeWriter typing={1} maxDelay={100} minDelay={100} onTypingEnd={() => this.triggerOnFinalSecondSentenceEnd()}><div>目前为止,</div> <div>骄阳宇宙发现了76颗星球,</div> <div>太空船还在持续搜索中...</div></TypeWriter>) : (null)}
                     </div>
@@ -1608,7 +1448,7 @@ class FinalPage extends React.Component {
                             <div className="increaseAndDecreaseIcon decrease">-</div>
                             {/* 調整桿 */}
                             <div className="adjustBarSelfDiv">
-                                <input type='range' min={200} max={350} defaultValue={this.state.planetRadius} step="1" ref={(self) => this.planetSizeInputDOMElement = self} onInput={() => this.handlePlanetSizeOnInput()}></input>
+                                <input type='range' min={this.state.planetRadius * 0.5} max={this.state.planetRadius * 1.5} defaultValue={this.state.planetRadius} step="1" ref={(self) => this.planetSizeInputDOMElement = self} onInput={() => this.handlePlanetSizeOnInput()}></input>
                             </div>
                             {/* 加號 */}
                             <div className="increaseAndDecreaseIcon increase">+</div>
@@ -1634,7 +1474,7 @@ class FinalPage extends React.Component {
                             <div className="increaseAndDecreaseIcon decrease">-</div>
                             {/* 調整桿 */}
                             <div className="adjustBarSelfDiv">
-                                <input type='range' min='0' max='99' defaultValue={this.state.planetUseToneIndex * 10} step="0.5" ref={(self) => this.planetToneInputDOMElement = self} onInput={() => this.handlePlanetToneOnInput()}></input>
+                                <input type='range' min='0' max='99' defaultValue='50' step="0.5" ref={(self) => this.planetToneInputDOMElement = self} onInput={() => this.handlePlanetToneOnInput()}></input>
                             </div>
                             {/* 加號 */}
                             <div className="increaseAndDecreaseIcon increase">+</div>
@@ -1726,8 +1566,7 @@ const mapDispatchToProps = {
     updateFromServerUsrPlanetRadius,
     updateFromServerPlanetTone,
     updateFromServerUsrPlanetMountainHeight,
-    updateFromServerUsrPlanetMountainDensity,
-    changeBGAlignToRight
+    updateFromServerUsrPlanetMountainDensity
 }
 
 export default connect(mapStateToProps, mapDispatchToProps)(FinalPage);

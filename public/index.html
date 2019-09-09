@@ -26,10 +26,12 @@
       -ms-user-select: none;
       user-select: none;
     }
+
     /* 隱藏捲動軸 */
     *::-webkit-scrollbar {
       display: none;
     }
+
     body {
       /* 自己加的CSS初始化 */
       /* border: 1px solid red; */
@@ -45,6 +47,7 @@
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
     }
+
     #root {
       height: 100%;
       width: 100%;
@@ -52,10 +55,121 @@
       overflow: hidden;
     }
   </style>
-  <title>React App</title>
+  <title>骄阳20周年庆抽奖活动</title>
+  <!-- <script src='http://res.wx.qq.com/open/js/jweixin-1.0.0.js'></script> -->
 </head>
 
 <body>
+
+  <!-- 用來啟用/禁用微信登入要求 true/false -->
+  <!-- false時也不向自建的伺服器請求 (為了避免跨域出錯) -->
+  <script>
+    window.enableWeXinLogIn = true;
+  </script>
+
+  <script>
+    // document.addEventListener('DOMContentLoaded', () => {
+      // document.body.appendChild();
+    // }, false);
+  </script>
+
+<audio src="%PUBLIC_URL%/Breakin_Point.mp3" autoplay></audio>
+
+  <!-- 制作微信分享文字和图片 -->
+  <script>
+    // if (window.enableWeXinLogIn) {
+    //   // 生成時間戳
+    //   function str2Stamp(time) {
+    //     var date = time.substr(0, 10)
+    //     var hour = time.substr(11, 2) == '00' ? 0 : time.substr(11, 2).replace(/\b(0+)/gi, "");
+    //     var minute = time.substr(14, 2) == '00' ? 0 : time.substr(14, 2).replace(/\b(0+)/gi, "");
+    //     var second = time.substr(17, 2) == '00' ? 0 : time.substr(17, 2).replace(/\b(0+)/gi, "");
+    //     var timestamp = parseInt(new Date(date).getTime() / 1000) + parseInt(hour) * 3600 + parseInt(minute) * 60 + parseInt(second) - 28800
+    //     console.log("時間戳");
+    //     return new Date(timestamp * 1000);
+    //   }
+    //   str2Stamp();
+
+    //   function GetSignP2(data) {
+    //     return request({
+    //       url: '/other/GetSignP2',
+    //       method: 'POST',
+    //       data: data
+    //     })
+    //   }
+
+    //   GetSignP2({ url: window.location.href }).then(res => {
+    //     wx.config({
+    //       debug: false, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，若要查看传入的参数，可以在pc端打开，参数信息会通过log打出，仅在pc端时才会打印。
+    //       appId: res.msg.appId, // 必填，公众号的唯一标识
+    //       timestamp: res.msg.timestamp, // 必填，生成签名的时间戳
+    //       nonceStr: res.msg.nonceStr, // 必填，生成签名的随机串
+    //       signature: res.msg.signature, // 必填，签名，见附录1
+    //       jsApiList: ["showMenuItems", "onMenuShareTimeline", "onMenuShareAppMessage", "updateAppMessageShareData", "updateTimelineShareData"] // 必填，需要使用的JS接口列表，所有JS接口列表见附录2
+    //     });
+    //     wx.ready(function () {
+    //       wx.checkJsApi({
+    //         jsApiList: ["showMenuItems"],
+    //         success: function (res) {
+    //           wx.showMenuItems({
+    //             menuList: [
+    //               "menuItem:share:appMessage",
+    //               "menuItem:share:timeline"
+    //             ]
+    //           });
+    //         }
+    //       });
+    //       wx.onMenuShareTimeline({ ////朋友圈
+    //         title: "华润 - 润溪山楼盘鉴赏", // 分享标题
+    //         desc: "点击即可线上看房，并立即与销售联系。", // 分享描述
+    //         link: 'http://statistics.isunupcg.com/' + short_key, // 分享链接，该链接域名或路径必须与当前页面对应的公众号JS安全域名一致
+    //         // imgUrl: res.msg.imgUrl, // 分享图标
+    //         imgUrl: 'http://runxishanmedia.oss-cn-shenzhen.aliyuncs.com/HuaRunLogo.jpg', // 分享图标
+    //         success: function (res) {
+    //           console.log(res);
+    //           // 用户确认分享后执行的回调函数
+    //           console.log("分享成功！！！");
+    //           ShareBack({ share_id: _shareid, share_url: _href + '&s=2' }).then(res => {
+    //           })
+    //         },
+    //         cancel: function () {
+    //           // 用户取消分享后执行的回调函数
+    //           console.log("取消分享！！！");
+    //         }
+    //       });
+    //       wx.onMenuShareAppMessage({ //朋友
+    //         title: "华润 - 润溪山楼盘鉴赏", // 分享标题
+    //         desc: "点击即可线上看房，并立即与销售联系。", // 分享描述
+    //         link: 'http://statistics.isunupcg.com/' + short_key, // 分享链接，该链接域名或路径必须与当前页面对应的公众号JS安全域名一致
+    //         // imgUrl: res.msg.imgUrl, // 分享图标
+    //         imgUrl: 'http://runxishanmedia.oss-cn-shenzhen.aliyuncs.com/HuaRunLogo.jpg', // 分享图标
+    //         type: "", // 分享类型,music、video或link，不填默认为link
+    //         dataUrl: "", // 如果type是music或video，则要提供数据链接，默认为空
+    //         success: function () {
+    //           // 用户确认分享后执行的回调函数
+    //           console.log("分享成功！！！");
+    //           ShareBack({ share_id: _shareid, share_url: _href + '&s=1' }).then(res => { })
+    //         },
+    //         cancel: function () {
+    //           // 用户取消分享后执行的回调函数
+    //           console.log("取消分享！！！");
+    //         }
+    //       });
+    //     })
+
+    //     wx.config({
+    //       debug: true, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，若要查看传入的参数，可以在pc端打开，参数信息会通过log打出，仅在pc端时才会打印。
+    //       appId: 'wx0db0332b2e95ff0e', // 必填，企业号的唯一标识，此处填写企业号corpid
+    //       timestamp: , // 必填，生成签名的时间戳
+    //       nonceStr: '', // 必填，生成签名的随机串
+    //       signature: '',// 必填，签名，见附录1
+    //       jsApiList: [] // 必填，需要使用的JS接口列表，所有JS接口列表见附录2
+    //     });
+    //   })
+    // }
+  </script>
+
+
   <div id="root"></div>
 </body>
 

@@ -1,8 +1,37 @@
 import React from 'react';
 import './LoadingPage.scss';
 import {TweenMax, TimelineMax, Linear, Power2} from 'gsap';
+import { connect } from 'react-redux';
+import {
+  updateUsrOpenID,
+  updateFromServerUsrPlanetRadius,
+  updateFromServerPlanetTone,
+  updateFromServerUsrPlanetMountainHeight,
+  updateFromServerUsrPlanetMountainDensity,
+  updateLoadingPageMounted,
+  updateIntroPageMounted,
+  updateFinalPageMounted
+} from '../../actions/actions.js';
 
 let loadingPercentage = 0;
+
+// 將接收到的state(包含在store內)放為本頁的state
+function mapStateToProps(state) {
+  // 將所有state傳入 <- 不能這樣傳，會不起作用
+  // return state
+
+  // 只傳入state中指定的值
+  return {
+    usrOpenID: state.myFirstReducers.usrOpenID,
+    fromServerUsrName: state.myFirstReducers.fromServerUsrName,
+    fromServerUsrPlanetRadius: state.myFirstReducers.fromServerUsrPlanetRadius,
+    fromServerUsrPlanetTone: state.myFirstReducers.fromServerUsrPlanetTone,
+    fromServerUsrPlanetMountainHeight: state.myFirstReducers.fromServerUsrPlanetMountainHeight,
+    fromServerUsrPlanetMountainDensity: state.myFirstReducers.fromServerUsrPlanetMountainDensity,
+    fromServerUsrWorkDays: state.myFirstReducers.fromServerUsrWorkDays,
+    thisPersonIdIsInDataBase: state.myFirstReducers.thisPersonIdIsInDataBase
+  }
+}
 
 class LoadingPage extends React.Component {
     constructor(props) {
@@ -11,6 +40,7 @@ class LoadingPage extends React.Component {
             currentLoadingPercentage: 0,                       //目前載入的%數
             isLoadingDone: false,                     //載入完成(載入完成則載入頁隱藏)
             loadingPageShowing: true,                  //是否顯示載入畫面
+            allowGoToNextPage: false,         //允許進入下一頁(確保css動畫演完)
         }
     }
 
@@ -20,6 +50,15 @@ class LoadingPage extends React.Component {
         
         // 更新載入頁面載入進度
         this.updateCurrentLoadingPercentage();
+
+        console.log("loadingPage掛載");
+
+        // 讓css動畫演完後，才准許進入下一頁
+        setTimeout(()=>{
+          this.setState({
+            allowGoToNextPage: true
+          })
+        }, 4500)
     }
 
         // 火箭人动画
@@ -144,6 +183,7 @@ class LoadingPage extends React.Component {
     
     // 更新目前載入進度
     updateCurrentLoadingPercentage() {
+
         var LoadingPageTimer = setInterval(() => {
             loadingPercentage += 1;
             // console.log(loadingPercentage);
@@ -157,22 +197,63 @@ class LoadingPage extends React.Component {
             // if (this.loadingBarDOMElement !== null) {
             //     this.loadingBarDOMElement.style.width = loadingPercentage + '%';
             // }
+            // console.log(this.props.thisPersonIdIsInDataBase);
 
             // 如果百分比>=100, 隱藏此畫面, 清除此計數器
-            if (loadingPercentage >= 100) {
+            if (loadingPercentage >= 100 && this.props.fromServerUsrName && this.state.allowGoToNextPage) {
                 // 隱藏此畫面
                 this.setState({
                     // loadingPageShowing: false,
                     loadingText: "载入完成!",
                     isLoadingDone: true,
                 })
-                // setTimeout(this.setState({
-                //     loadingPageShowing: false
-                // }), 500)
+                setTimeout(this.setState({
+                    loadingPageShowing: false
+                }), 500)
+
+            // 畫面消失後掛載introPage (畫面消失秒數依此頁的css中為準)
+            setTimeout(()=>{
+              this.props.updateIntroPageMounted(true)
+            }, 500)
+            
+            setTimeout(()=>{
+              console.log('開始移除LoadingPage');
+
+              // 更改store將此頁從畫面中unMount
+              this.props.updateLoadingPageMounted(false);
+            }, 4000)
+
                 // 清除此計數器
                 clearInterval(LoadingPageTimer);
-            }
-        }, 13);
+              } else if (loadingPercentage >= 100 && !this.props.thisPersonIdIsInDataBase && this.state.allowGoToNextPage) {
+                console.log('LoadingPage判斷此人不在資料庫中，從store讀到thisPersonIdIsInDataBase的值為:'+this.props.thisPersonIdIsInDataBase);
+                // 隱藏此畫面
+                this.setState({
+                    // loadingPageShowing: false,
+                    loadingText: "载入完成!",
+                    isLoadingDone: true,
+                })
+                setTimeout(this.setState({
+                    loadingPageShowing: false
+                }), 500)
+
+            // 畫面消失後掛載introPage (畫面消失秒數依此頁的css中為準)
+            setTimeout(()=>{
+              this.props.updateIntroPageMounted(true)
+            }, 500)
+            
+            setTimeout(()=>{
+              console.log('開始移除LoadingPage');
+
+              // 更改store將此頁從畫面中unMount
+              this.props.updateLoadingPageMounted(false);
+            }, 4000)
+
+                // 清除此計數器
+                clearInterval(LoadingPageTimer);
+              }
+
+            }, 15);
     }
 
     render() {
@@ -192,34 +273,19 @@ class LoadingPage extends React.Component {
     </clipPath>
 </defs>
   <polygon className="star" opacity="0.5" fill="#ECB447" points="1.2,0 1.6,0.8 2.4,0.9 1.8,1.5 1.9,2.3 1.2,1.9 0.5,2.3 0.6,1.5 0,0.9 0.8,0.8 " />
-  <g className="starContainer" />
+  <g className="starContainer" style={{display: 'none'}}/>
   <g className="satellite">
     <g className="satellitePulses" stroke="#2d2d2d">
-      <path className="satellitePulse" fill="none" strokeWidth="1.5814" strokeLinejoin="round" strokeMiterlimit={10} d="M156.3,131.8
-    c-2.8,2.8-7.2,2.8-10,0" />
-      <path className="satellitePulse" fill="none" strokeWidth="1.5814" strokeLinejoin="round" strokeMiterlimit={10} d="M158.6,134
-    c-4,4-10.5,4-14.4,0" />
-      <path className="satellitePulse" fill="none" strokeWidth="1.5814" strokeLinejoin="round" strokeMiterlimit={10} d="M160.8,136.3
-    c-5.2,5.2-13.7,5.2-18.9,0" />
     </g>
-    <path fill="#2d2d2d" d="M106.7,91.3h-8.2v-8.2h8.2V91.3z M116.8,83.1h-8.2v8.2h8.2V83.1z M126.8,83.1h-8.2v8.2h8.2V83.1z
- M136.9,83.1h-8.2v8.2h8.2V83.1z M106.7,93.2h-8.2v8.2h8.2V93.2z M116.8,93.2h-8.2v8.2h8.2V93.2z M126.8,93.2h-8.2v8.2h8.2V93.2z
- M136.9,93.2h-8.2v8.2h8.2V93.2z M106.7,103.3h-8.2v8.2h8.2V103.3z M116.8,103.3h-8.2v8.2h8.2V103.3z M126.8,103.3h-8.2v8.2h8.2
-V103.3z M136.9,103.3h-8.2v8.2h8.2V103.3z M173.7,83.1h-8.2v8.2h8.2V83.1z M183.8,83.1h-8.2v8.2h8.2V83.1z M193.8,83.1h-8.2v8.2h8.2
-V83.1z M203.9,83.1h-8.2v8.2h8.2V83.1z M173.7,93.2h-8.2v8.2h8.2V93.2z M183.8,93.2h-8.2v8.2h8.2V93.2z M193.8,93.2h-8.2v8.2h8.2
-V93.2z M203.9,93.2h-8.2v8.2h8.2V93.2z M173.7,103.3h-8.2v8.2h8.2V103.3z M183.8,103.3h-8.2v8.2h8.2V103.3z M193.8,103.3h-8.2v8.2
-h8.2V103.3z M203.9,103.3h-8.2v8.2h8.2V103.3z M161.8,113.1V81c0-2.6-2.1-4.7-4.7-4.7h-11.7c-2.6,0-4.7,2.1-4.7,4.7v32.1
-c0,2.6,2.1,4.7,4.7,4.7h11.7C159.7,117.8,161.8,115.7,161.8,113.1z M165.6,96.3h-28.7v2.1h28.7V96.3z M152.3,117.8h-2.2v12.1h2.2
-V117.8z" />
   </g>
   <g className="speedLines" stroke="#3e3e3e" strokeWidth={2} strokeLinejoin="round">
-    <line id="speedLine0" fill="none" strokeMiterlimit={10} x1="252.5" y1={324} x2="252.5" y2={566} />
-    <line id="speedLine1" fill="none" strokeMiterlimit={10} x1="299.5" y1={500} x2="299.5" y2={557} />
-    <line id="speedLine2" fill="none" strokeMiterlimit={10} x1="347.5" y1={324} x2="347.5" y2={529} />
-    <line id="speedLine3" fill="none" strokeMiterlimit={10} x1="74.5" y1={45} x2="74.5" y2={500} />
-    <line id="speedLine4" fill="none" strokeMiterlimit={10} x1="544.5" y1={29} x2="544.5" y2={574} />
-    <line id="speedLine5" fill="none" strokeMiterlimit={10} x1="415.5" y1={8} x2="415.5" y2={440} />
-    <line id="speedLine6" fill="none" strokeMiterlimit={10} x1="165.5" y1={142} x2="165.5" y2={574} />
+    <line id="speedLine0" style={{display: 'none'}} fill="none" strokeMiterlimit={10} x1="252.5" y1={324} x2="252.5" y2={566} />
+    <line id="speedLine1" style={{display: 'none'}} fill="none" strokeMiterlimit={10} x1="299.5" y1={500} x2="299.5" y2={557} />
+    <line id="speedLine2" style={{display: 'none'}} fill="none" strokeMiterlimit={10} x1="347.5" y1={324} x2="347.5" y2={529} />
+    <line id="speedLine3" style={{display: 'none'}} fill="none" strokeMiterlimit={10} x1="74.5" y1={45} x2="74.5" y2={500} />
+    <line id="speedLine4" style={{display: 'none'}} fill="none" strokeMiterlimit={10} x1="544.5" y1={29} x2="544.5" y2={574} />
+    <line id="speedLine5" style={{display: 'none'}} fill="none" strokeMiterlimit={10} x1="415.5" y1={8} x2="415.5" y2={440} />
+    <line id="speedLine6" style={{display: 'none'}} fill="none" strokeMiterlimit={10} x1="165.5" y1={142} x2="165.5" y2={574} />
   </g>
   <rect x={275} y="263.3" clipPath="url(#rainbowClip)" fill="#CC583F" width={10} height="212.7" />
   <rect x={285} y="263.3" clipPath="url(#rainbowClip)" fill="#ECB447" width={10} height="212.7" />
@@ -320,14 +386,23 @@ V117.8z" />
   </g>
 </svg>
                 
-                <div className="text">{this.state.currentLoadingPercentage}</div>
-
+                <div className="text" style={{display: 'none'}}>{this.state.currentLoadingPercentage}</div>
+                <div className="year"><span>1999.9.9  -  2019.9.9</span></div>
                 </div>
-
-
             </div>
         )
     }
 }
 
-export default LoadingPage;
+const mapDispatchToProps = {
+  updateUsrOpenID,
+  updateFromServerUsrPlanetRadius,
+  updateFromServerPlanetTone,
+  updateFromServerUsrPlanetMountainHeight,
+  updateFromServerUsrPlanetMountainDensity,
+  updateLoadingPageMounted,
+  updateIntroPageMounted,
+  updateFinalPageMounted
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(LoadingPage);

@@ -1,40 +1,233 @@
 .IntroTextPage2 {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2000;
+  &.hide {
+      transition: all 1s;
+      opacity: 0;
+      pointer-events: none;
+  }
+  .bg {
+    pointer-events: none;
     position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    &.alignToRight {
+      transition: all 1s ease-in-out;
+      left: -130%;
+    }
+    img {
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0%;
+    }
+  }
+  .debug {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+  }
+  .firstPage {
+    position: absolute;
+    pointer-events: none;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    .debug {
-        position: absolute;
-        bottom: 0;
-        right: 0;
+    color: #fff;
+    font-family: Microsoft JhengHei;
+    transition: all 1s;
+    &.hide {
+      opacity: 0;
+      pointer-events: none;
     }
-    .sentenceContainer {
-        position: absolute;
+    .name {
+      position: absolute;
+      top: 20%;
+      left: 10%;
+      font-size: 3rem;
+    }
+    .sentence {
+      position: absolute;
+      left: 10%;
+      font-size: 1.3rem;
+      font-weight: 600;
+      &:nth-child(2) {
+        top: 35%;
+      }
+      &:nth-child(3) {
+        top: 42%;
+      }
+      &:nth-child(4) {
         top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        font-family: serif;
-        background-color: #ffffff0f;
-        .sentence {
-            max-height: 0;
-            font-family: Microsoft JhengHei;
-            overflow: hidden;
-            white-space: nowrap;
-            transition: all 1.5s ease;
-            color: rgba(224, 202, 179, 0);
-            font-size: 1.2rem;
-            font-weight: 1000;
-            text-align: center;
-            margin-bottom: 0rem;
-            &.show {
-                margin-bottom: 1rem;
-                max-height: 10vh;
-                color: rgba(224, 202, 179, 1);
-                &:nth-child(1) {
-                    margin-top: 1rem;
-                }
-            }
-        }
+      }
     }
+  }
+  .secondPage {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    color: #fff;
+    font-family: Microsoft JhengHei;
+    transition: all 1s;
+    &.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .name {
+      position: absolute;
+      top: 20%;
+      left: 10%;
+      font-size: 3rem;
+    }
+    .sentence {
+      position: absolute;
+      left: 10%;
+      font-size: 1.3rem;
+      font-weight: 600;
+      &:nth-child(1) {
+        top: 22%;
+      }
+      &:nth-child(2) {
+        top: 26%;
+      }
+      &:nth-child(3) {
+        top: 37%;
+      }
+      &:nth-child(4) {
+        top: 41%;
+      }
+      &:nth-child(5) {
+        top: 52%;
+      }
+      &:nth-child(6) {
+        top: 56%;
+      }
+      &:nth-child(7) {
+        top: 60%;
+      }
+    }
+  }
+  .thirdPage {
+    position: absolute;
+    pointer-events: none;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    color: #fff;
+    font-family: Microsoft JhengHei;
+    transition: all 1s;
+    &.hide {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .name {
+      position: absolute;
+      top: 20%;
+      left: 10%;
+      font-size: 3rem;
+    }
+    .sentence {
+      position: absolute;
+      left: 10%;
+      font-size: 1.3rem;
+      font-weight: 600;
+      &:nth-child(1) {
+        top: 22%;
+      }
+      &:nth-child(2) {
+        top: 26%;
+      }
+      &:nth-child(3) {
+        top: 37%;
+      }
+      &:nth-child(4) {
+        top: 41%;
+      }
+      &:nth-child(5) {
+        top: 52%;
+      }
+      &:nth-child(6) {
+        top: 56%;
+      }
+      &:nth-child(7) {
+        top: 60%;
+      }
+    }
+  }
+  .startButton {
+    position: absolute;
+    top: 70%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    // border: 1px solid rgb(180, 127, 127);
+    height: 100px;
+    width: 100px;
+    border-radius: 50%;
+    background-image: url("../../images/BT.png");
+    background-size: 100% 100%;
+    -webkit-box-shadow: 0px 0px 35px -6px rgba(255, 102, 0, 0.68);
+    -moz-box-shadow: 0px 0px 35px -6px rgba(255, 102, 0, 0.68);
+    box-shadow: 0px 0px 35px -6px rgba(255, 102, 0, 0.68);
+    animation: introPage2StartButtonAnimation 0.5s infinite ease alternate;
+    @keyframes introPage2StartButtonAnimation {
+      0% {
+        transform: translate(-50%, -50%) scale(1);
+      }
+      100% {
+        transform: translate(-50%, -50%) scale(1.2);
+      }
+    }
+    transition: opacity 2s;
+    &.hide {
+        opacity: 0;
+        pointer-events: none;
+    }
+    span {
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      position: absolute;
+      font-size: 1.3rem;
+      color: #fff;
+    }
+  }
+  .sentenceContainer {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: serif;
+    background-color: #ffffff0f;
+    .sentence {
+      max-height: 0;
+      font-family: Microsoft JhengHei;
+      overflow: hidden;
+      white-space: nowrap;
+      transition: all 1.5s ease;
+      color: rgba(224, 202, 179, 0);
+      font-size: 1.2rem;
+      font-weight: 1000;
+      text-align: center;
+      margin-bottom: 0rem;
+      &.show {
+        margin-bottom: 1rem;
+        max-height: 10vh;
+        color: rgba(224, 202, 179, 1);
+        &:nth-child(1) {
+          margin-top: 1rem;
+        }
+      }
+    }
+  }
 }

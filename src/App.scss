@@ -11,4 +11,36 @@
     width: 100%;
     height: 100%;
   }
+  .bg {
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    &.alignToRight {
+      transition: all 1s ease-in-out;
+      left: -130%;
+    }
+    img {
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0%;
+    }
+  }
+  .alwaysAlignToRightBg {
+    pointer-events: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    img {
+      height: 100%;
+      position: absolute;
+      top: 0;
+      right: 0%;
+    }
+  }
 }

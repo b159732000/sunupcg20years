@@ -7,6 +7,8 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
   height: 100%;
   width: 100%;
   font-family: Microsoft JhengHei;
+  z-index: 1000;
+  // background-color: rebeccapurple;
 
   // 偵測手勢滑動
   .detectTouchMove {
@@ -31,10 +33,11 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
     position: absolute;
     top: 0;
     left: 0;
+    z-index: 1;
     // opacity: 0;
     &.usrControlIsOpen {
-      filter: blur(4px);
-      transform: scale(1.1);
+      // filter: blur(4px);
+      // transform: scale(1.1);
       pointer-events: none;
     }
   }
@@ -48,18 +51,87 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
     width: 100%;
     pointer-events: none;
     color: #fff;
+    // 正在显示第二页结果页
+    &.second {
+      .yourPlanetText {
+        opacity: 0;
+      }
+      .year {
+        opacity: 1;
+      }
+    }
     .yourPlanetText {
       position: absolute;
-      top: 15%;
+      top: 11%;
       left: 50%;
       transform: translate(-50%, 0);
       white-space: nowrap;
+      text-align: center;
+      opacity: 1;
+      transition: all 1s;
+    }
+    .finalTextFirstPageBottom {
+      position: absolute;
+      top: 81%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #ffd9a9;
+      white-space: nowrap;
+      text-align: center;
+      font-size: 0.9rem;
+      &.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .sentence {
+        &.first {
+        }
+        &.second {
+        }
+      }
+    }
+    .logo {
+      position: absolute;
+      bottom: 0%;
+      left: 50%;
+      transform: translate(-50%, 0);
+      height: 1.4rem;
+      display: flex;
+      align-items: center;
+      font-size: 0.8rem;
+      color: #ffffffad;
+      div {
+        display: inline-flex;
+        white-space: nowrap;
+        align-items: flex-end;
+        img {
+          height: 1rem;
+          margin-left: 1rem;
+        }
+      }
+    }
+    .year {
+      position: absolute;
+      // top: 12%;
+      top: 9%;
+      left: 50%;
+      transform: translate(-50%, 0);
+      white-space: nowrap;
+      text-align: center;
+      opacity: 0;
+      transition: all 1s;
+      color: #ffd9a9;
     }
     .allPlanetText {
       position: absolute;
       bottom: 16%;
       left: 50%;
       transform: translate(-50%, 0);
+      opacity: 0;
+      pointer-events: none;
+      &.hide {
+        opacity: 0;
+      }
     }
     // 上滑提示
     .scrollTopText {
@@ -69,6 +141,10 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
       transform: translate(-50%, 0);
       opacity: 1;
       transition: all 1s 1s;
+      // 下三行讓這個始終隱藏
+      transition: all 0.7s;
+      opacity: 0;
+      pointer-events: none;
       &.hide {
         transition: all 0.7s;
         opacity: 0;
@@ -101,6 +177,10 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
       transform: translate(-50%, 0);
       opacity: 1;
       transition: all 1s 1s;
+      // 下三行讓這個始終隱藏
+      transition: all 0.7s;
+      opacity: 0;
+      pointer-events: none;
       &.hide {
         transition: all 0.7s;
         opacity: 0;
@@ -155,7 +235,8 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
         // 標題
         .title {
           position: absolute;
-          top: 100px;
+          // top: 100px;
+          top: 68px;
           width: 100%;
           text-align: center;
           line-height: 30px;
@@ -173,7 +254,8 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
         // 調整的標題
         .adjustTitle {
           position: absolute;
-          bottom: 50%;
+          // bottom: 50%;
+          top: 169px;
           left: 0;
           transform: translateY(-50%);
           width: 100%;
@@ -183,7 +265,8 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
         // 調整桿欄位
         .adjustBar {
           width: 60%;
-          top: 65%;
+          // top: 65%;
+          top: 82%;
           left: 50%;
           transform: translate(-50%, -50%);
           position: absolute;
@@ -244,7 +327,7 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
         // 標題
         .title {
           position: absolute;
-          top: 100px;
+          top: 68px;
           width: 100%;
           text-align: center;
           line-height: 30px;
@@ -261,7 +344,8 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
         // 調整的標題
         .adjustTitle {
           position: absolute;
-          bottom: 50%;
+          // bottom: 50%;
+          top: 169px;
           left: 0;
           transform: translateY(-50%);
           width: 100%;
@@ -271,7 +355,8 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
         // 調整桿欄位
         .adjustBar {
           width: 60%;
-          top: 65%;
+          // top: 65%;
+          top: 82%;
           left: 50%;
           transform: translate(-50%, -50%);
           position: absolute;
@@ -332,7 +417,7 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
         // 標題
         .title {
           position: absolute;
-          top: 100px;
+          top: 68px;
           width: 100%;
           text-align: center;
           line-height: 30px;
@@ -349,7 +434,8 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
         // 調整的標題
         .adjustTitle {
           position: absolute;
-          bottom: 50%;
+          // bottom: 50%;
+          top: 169px;
           left: 0;
           transform: translateY(-50%);
           width: 100%;
@@ -359,7 +445,8 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
         // 調整桿欄位
         .adjustBar {
           width: 60%;
-          top: 65%;
+          // top: 65%;
+          top: 82%;
           left: 50%;
           transform: translate(-50%, -50%);
           position: absolute;
@@ -392,6 +479,7 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
               top: 50%;
               transform: translateY(-50%);
               width: 100%;
+              direction: rtl;
 
               // 樣式測試 (將桿子變成灰點點線)
               -webkit-appearance: none;
@@ -420,7 +508,7 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
         // 標題
         .title {
           position: absolute;
-          top: 100px;
+          top: 68px;
           width: 100%;
           text-align: center;
           line-height: 30px;
@@ -437,7 +525,8 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
         // 調整的標題
         .adjustTitle {
           position: absolute;
-          bottom: 50%;
+          // bottom: 50%;
+          top: 169px;
           left: 0;
           transform: translateY(-50%);
           width: 100%;
@@ -447,7 +536,8 @@ $ControlOpenHideAnimation: all cubic-bezier(0.06, 0.69, 0.45, 1) 0.5s;
         // 調整桿欄位
         .adjustBar {
           width: 60%;
-          top: 65%;
+          // top: 65%;
+          top: 82%;
           left: 50%;
           transform: translate(-50%, -50%);
           position: absolute;
